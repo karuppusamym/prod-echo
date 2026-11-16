@@ -59,3 +59,6 @@ recorder.err
 !tests/fixtures/**/*.har
 /bundles-*/
 /runs-*/
+
+# synthetic sample robot logs are source
+!samples/loan_payoff/robotlogs/*.log
