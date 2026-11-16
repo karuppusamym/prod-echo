@@ -1,0 +1,69 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="CreatePayoffQuote"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:uix="http://schemas.uipath.com/workflow/activities/uix"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- SYNTHETIC SAMPLE (Prod Echo rehearsal): hand-written in the Studio 23.10 XAML format
+       (modern UI activities). Hostnames are reserved .example.test names. -->
+  <x:Members>
+    <x:Property Name="in_LoanNo" Type="InArgument(x:String)" />
+    <x:Property Name="in_Reason" Type="InArgument(x:String)" />
+    <x:Property Name="in_PayoffDate" Type="InArgument(x:String)" />
+    <x:Property Name="out_QuoteId" Type="OutArgument(x:String)" />
+    <x:Property Name="out_QuoteAmt" Type="OutArgument(x:String)" />
+  </x:Members>
+  <Sequence DisplayName="LoanServicing_CreatePayoffQuote" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <uix:NApplicationCard AttachMode="SingleWindow" CloseMode="Never" DisplayName="Use Browser Edge: Loan Servicing" HealingAgentBehavior="SameAsJob" OpenMode="IfNotOpen" WindowResize="None" sap2010:WorkflowViewState.IdRef="NApplicationCard_1">
+      <uix:NApplicationCard.Body>
+        <ActivityAction x:TypeArguments="x:Object">
+          <ActivityAction.Argument>
+            <DelegateInArgument x:TypeArguments="x:Object" Name="WSSessionData" />
+          </ActivityAction.Argument>
+          <Sequence DisplayName="Do" sap2010:WorkflowViewState.IdRef="Sequence_2">
+            <uix:NTypeInto ActivateBefore="True" ClickBeforeMode="Single" DisplayName="Type Into 'Loan number'" EmptyFieldMode="SingleLine" InteractionMode="Simulate" Text="[in_LoanNo]" sap2010:WorkflowViewState.IdRef="NTypeInto_1">
+              <uix:NTypeInto.Target>
+                <uix:TargetAnchorable ElementType="InputBox" FullSelectorArgument="&lt;webctrl id='loanSearch' tag='INPUT' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e01" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Loan Lookup' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NTypeInto.Target>
+            </uix:NTypeInto>
+            <uix:NClick ActivateBefore="True" ClickType="Single" DisplayName="Click 'Look up'" InteractionMode="Simulate" KeyModifiers="None" MouseButton="Left" sap2010:WorkflowViewState.IdRef="NClick_1">
+              <uix:NClick.Target>
+                <uix:TargetAnchorable ElementType="Button" FullSelectorArgument="&lt;webctrl id='btnLookup' tag='BUTTON' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e02" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Loan Lookup' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NClick.Target>
+            </uix:NClick>
+            <uix:NSelectItem DisplayName="Select Item 'Payoff reason'" InteractionMode="Simulate" Item="[in_Reason]" sap2010:WorkflowViewState.IdRef="NSelectItem_1">
+              <uix:NSelectItem.Target>
+                <uix:TargetAnchorable ElementType="DropDown" FullSelectorArgument="&lt;webctrl id='reasonCd' tag='SELECT' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e03" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Payoff Quote' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NSelectItem.Target>
+            </uix:NSelectItem>
+            <uix:NTypeInto ActivateBefore="True" ClickBeforeMode="Single" DisplayName="Type Into 'Payoff date'" EmptyFieldMode="SingleLine" InteractionMode="Simulate" Text="[in_PayoffDate]" sap2010:WorkflowViewState.IdRef="NTypeInto_2">
+              <uix:NTypeInto.Target>
+                <uix:TargetAnchorable ElementType="InputBox" FullSelectorArgument="&lt;webctrl id='payoffDt' tag='INPUT' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e04" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Payoff Quote' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NTypeInto.Target>
+            </uix:NTypeInto>
+            <uix:NClick ActivateBefore="True" ClickType="Single" DisplayName="Click 'Generate quote'" InteractionMode="Simulate" KeyModifiers="None" MouseButton="Left" sap2010:WorkflowViewState.IdRef="NClick_2">
+              <uix:NClick.Target>
+                <uix:TargetAnchorable ElementType="Button" FullSelectorArgument="&lt;webctrl id='btnQuote' tag='BUTTON' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e05" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Payoff Quote' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NClick.Target>
+            </uix:NClick>
+            <uix:NGetText DisplayName="Get Text 'Quote ID'" Text="[out_QuoteId]" sap2010:WorkflowViewState.IdRef="NGetText_1">
+              <uix:NGetText.Target>
+                <uix:TargetAnchorable ElementType="Text" FullSelectorArgument="&lt;webctrl id='quoteId' tag='SPAN' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e06" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Quote Created' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NGetText.Target>
+            </uix:NGetText>
+            <uix:NGetText DisplayName="Get Text 'Payoff amount'" Text="[out_QuoteAmt]" sap2010:WorkflowViewState.IdRef="NGetText_2">
+              <uix:NGetText.Target>
+                <uix:TargetAnchorable ElementType="Text" FullSelectorArgument="&lt;webctrl id='quoteAmt' tag='SPAN' /&gt;" Guid="b2e2b7d3-8d2f-4ce1-8e3b-1f9f4c8d5e07" ScopeSelectorArgument="&lt;html app='msedge.exe' title='Loan Servicing - Quote Created' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NGetText.Target>
+            </uix:NGetText>
+          </Sequence>
+        </ActivityAction>
+      </uix:NApplicationCard.Body>
+      <uix:NApplicationCard.TargetApp>
+        <uix:TargetApp Area="0, 0, 1280, 1024" BrowserType="Edge" IconBase64="" Selector="&lt;html app='msedge.exe' title='Loan Servicing - Loan Lookup' /&gt;" Title="Loan Servicing - Loan Lookup" Url="https://loans.example.test/servicing/lookup" Version="V2" />
+      </uix:NApplicationCard.TargetApp>
+    </uix:NApplicationCard>
+  </Sequence>
+</Activity>

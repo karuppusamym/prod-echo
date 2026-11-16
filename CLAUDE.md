@@ -42,7 +42,7 @@ docs/                     problem, architecture, plan, decisions, risks
   03-plan.md              THE plan: ordered items with Definition of Done
   04-data-contracts.md    evidence bundle, process map, subset spec, provenance map, mask manifest
   05-capture-tools.md     NetLog, CDP/HAR recorder, screen capture, robot logs, XAML
-  06-data-pipeline.md     schema inventory, binding, closure, Synapse interface, masking, loader
+  06-data-pipeline.md     schema inventory, binding, closure, extractor, masking, loader
   07-app-generator.md     templates, server-rendered read/write wiring, packaging
   08-execution-and-parity.md  runtime API, leases, baselines, parity comparison
   09-risks-and-open-questions.md
@@ -54,7 +54,9 @@ echo/                     the Python package; one subpackage per area
   capture/ analyze/ data/ mask/ generate/ runtime/ cli.py
   pipeline.py             the step functions behind the CLI and `echo pipeline harness`
   util.py                 paths (ECHO_HOME), JSON/JSONL helpers
-scripts/                  refresh_fixtures.py (regenerates tests/fixtures/harness_bundle)
+scripts/                  refresh_fixtures.py (tests/fixtures/harness_bundle); make_loan_payoff_samples.py,
+                          sample_replica.py (the synthetic rehearsal replica)
+samples/loan_payoff/      synthetic real-format samples (XAML, robot logs, replica, trace); not real
 tests/                    pytest; fixtures come from harness runs checked in under tests/fixtures
 .github/workflows/ci.yml  lint, fast tests, then browser tests
 uat/ bundles*/ runs*/ work/ echo_db/ generated_apps/   generated output, not source

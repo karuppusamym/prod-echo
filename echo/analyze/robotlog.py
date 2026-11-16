@@ -1,5 +1,14 @@
-"""Robot log parser (I-08): Verbose log (NLog JSON lines or an Orchestrator JSON export) ->
-one trace per run.
+"""Robot log parser (I-08): Verbose log -> one trace per run. Accepted inputs:
+
+- the robot's NLog file (`<date>_Execution.log`): one JSON object per line, optionally after the
+  NLog `HH:mm:ss.ffff Level ` prefix;
+- JSON lines without a prefix, or a JSON array (Orchestrator API export);
+- an Orchestrator Logs CSV export: the column whose header is "Raw Message" holds the JSON; rows
+  are sorted back into time order (the UI lists newest first). Rows without it keep their
+  Time/Level/Message only.
+
+Modern UI activities (`UiPath.UIAutomationNext.Activities.NTypeInto` ...) are reported under the
+classic names (`TypeInto` ...); their read value is the `Text` argument.
 
 Rules (docs/05): tolerate missing `activityInfo`; activities whose values are absent although the
 activity type carries a value (`Private` activities, logging exclusions) are emitted with
@@ -13,7 +22,9 @@ export that are not below show up in `unmapped_fields`.
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import logging
 import re
@@ -57,6 +68,17 @@ VALUE_ARG = {
     "NavigateTo": "Url",
     "OpenBrowser": "Url",
 }
+MODERN = {
+    "NTypeInto": "TypeInto",
+    "NSetText": "SetText",
+    "NClick": "Click",
+    "NGetText": "GetText",
+    "NGetAttribute": "GetAttribute",
+    "NSelectItem": "SelectItem",
+    "NApplicationCard": "NApplicationCard",
+    "NGoToUrl": "NavigateTo",
+    "NCheckState": "CheckState",
+}
 SEL_TAG_RE = re.compile(r"<(\w+)\s+([^<>]*?)\s*/?>")
 SEL_ATTR_RE = re.compile(r"(\w+)\s*=\s*'([^']*)'")
 
@@ -72,10 +94,47 @@ def parse_selector(s: str | None) -> dict[str, str] | None:
     return out or None
 
 
+def _csv_rows(text: str, path: Path) -> list[dict]:
+    out = []
+    for i, row in enumerate(csv.DictReader(io.StringIO(text))):
+        norm = {re.sub(r"[^a-z]", "", (k or "").lower()): v for k, v in row.items()}
+        raw = norm.get("rawmessage") or norm.get("raw")
+        obj = None
+        if raw:
+            try:
+                obj = json.loads(raw)
+            except json.JSONDecodeError:
+                log.warning("row %d of %s: raw message is not JSON", i + 2, path)
+        if not isinstance(obj, dict):
+            obj = {
+                "message": norm.get("message"),
+                "level": norm.get("level"),
+                "timeStamp": norm.get("time"),
+                "processName": norm.get("process"),
+                "robotName": norm.get("robot"),
+            }
+        out.append(obj)
+
+    def key(e: dict) -> float:
+        try:
+            return parse_iso(e.get("timeStamp") or "").timestamp()
+        except (ValueError, TypeError):
+            return float("inf")
+
+    return sorted(out, key=key)  # stable: equal timestamps keep their file order
+
+
+def _looks_like_csv(first_line: str) -> bool:
+    low = first_line.lower()
+    return "{" not in first_line and "," in low and "message" in low
+
+
 def _lines(path: Path) -> list[dict]:
-    text = Path(path).read_text(encoding="utf-8", errors="replace").strip()
+    text = Path(path).read_text(encoding="utf-8-sig", errors="replace").strip()
     if not text:
         return []
+    if _looks_like_csv(text.splitlines()[0]):
+        return _csv_rows(text, path)
     if text.startswith("["):  # Orchestrator export: a JSON array
         try:
             data = json.loads(text)
@@ -87,6 +146,8 @@ def _lines(path: Path) -> list[dict]:
         line = line.strip()
         if not line:
             continue
+        if not line.startswith("{") and "{" in line:  # NLog layout: "HH:mm:ss.ffff Level {json}"
+            line = line[line.index("{") :]
         try:
             obj = json.loads(line)
         except json.JSONDecodeError:
@@ -116,7 +177,8 @@ def run_id_for(job_id: str, started: str) -> str:
 
 
 def _short(activity: str) -> str:
-    return activity.rsplit(".", 1)[-1] if activity else ""
+    short = activity.rsplit(".", 1)[-1] if activity else ""
+    return MODERN.get(short, short)
 
 
 def parse(path: Path) -> list[RobotTrace]:
@@ -216,6 +278,7 @@ def activities(trace: RobotTrace) -> list[dict]:
                 "selector": s.selector,
                 "values": dict(s.values),
                 "redacted": s.redacted,
+                "state": s.state,
                 "seq": len(out) + 1,
             }
             out.append(a)
@@ -234,8 +297,11 @@ def activities(trace: RobotTrace) -> list[dict]:
                 }
                 out.append(a)
             a["end"] = s.ts
+            a["state"] = s.state
             for k, v in s.values.items():
                 if k != "vars":
                     a["values"].setdefault(k, {}).update(v)
-            a["redacted"] = a["redacted"] or s.redacted
+            # redacted only when no entry of the pair carried the value (modern reads log it on
+            # Closed; Private activities log it on neither)
+            a["redacted"] = a["redacted"] and s.redacted
     return out

@@ -9,11 +9,11 @@ PRODUCTION                    DESIGN ENV                          EXECUTION ENV
 UiPath bots (unchanged)       Process analyzer                    Echo DB (one DB, one key)
   robot logs (Verbose) ───┐     XAML + logs + HAR + screens          ▲ loads
   NetLog ─────────────────┼──►  → process map, bot trace            │
-  CDP / HAR ──────────────┤          │ subset spec      Synapse ────┘
+  CDP / HAR ──────────────┤          │ subset spec      extract ────┘
   screens (DOM + PNG) ────┼──►  Lightweight app generator        Generated App1   Generated App2
   UiPath XAML ────────────┘     DOM → templates bound to columns   (templates + data service)
                                 → HTML+JS package per app  ──deploy──►   ▲ drive        ▲ drive
-App DB read replicas ─────────► Synapse / own extractor            Agentic runtime: any agent
+App DB read replicas ─────────► own extractor (closure)            Agentic runtime: any agent
   schema, rows, audit columns   closure queries, masking           runtime API: lease, release
                                                                     parity: agent run vs bot trace
 ```
@@ -35,7 +35,7 @@ App DB read replicas ─────────► Synapse / own extractor     
 | Classification | `echo/data/provenance.py` | I-12 | read/write per entity; column provenance |
 | Subset spec | `echo/data/spec.py` | I-13 | `subset.yaml` validate / generate |
 | Closure | `echo/data/closure.py` | I-14, I-15 | seed keys → whole related rows; trace diff |
-| Extractor | `echo/data/extract.py` | I-16 | `Extractor` protocol; own + Synapse |
+| Extractor | `echo/data/extract.py` | I-16 | `Extractor` protocol; `OwnExtractor` (Synapse is a metadata source, ADR-011) |
 | Masking | `echo/mask/` | I-17 | `mask(row, manifest, key)`; sanitize |
 | Loader | `echo/data/load.py` | I-18 | MERGE, id remap, batch tag, idempotent |
 | Templates | `echo/generate/template.py` | I-19 | DOM → template with slots |
@@ -67,7 +67,7 @@ harness (`harness bot`, `capture probe`, `pipeline harness`) refuse to run elsew
 4. `echo data schema pull` reads the replica schema; `echo data bind` finds the columns behind the
    typed values; `echo data classify` decides read vs write per entity and produces `provenance.json`.
 5. `echo data spec generate` writes `subset.yaml`; a human adds cross-app links and reviews.
-6. `echo data extract` pulls the closure for the selected customers (own extractor or Synapse),
+6. `echo data extract` pulls the closure for the selected customers (`OwnExtractor`),
    masks the agreed fields under the environment key and runs sanitize, writing a baseline
    (`echo mask manifest` proposes the manifest, `echo mask sanitize` prints a baseline's report);
    `echo data load` merges the baseline into the Echo DB. Nothing unmasked is written to disk.

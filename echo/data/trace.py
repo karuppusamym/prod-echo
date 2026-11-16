@@ -18,7 +18,11 @@ from sqlalchemy import Engine, text
 from echo.data.closure import ClosureResult
 from echo.data.models import Association, Associations, Schema
 
-TABLE_RE = re.compile(r'\b(?:FROM|JOIN|INTO|UPDATE)\s+"?([A-Za-z_][\w$#]*)"?', re.I)
+# FROM t / FROM "T" / FROM lpo."T" / FROM [dbo].[T] / FROM "LPO"."T"
+TABLE_RE = re.compile(
+    r'\b(?:FROM|JOIN|INTO|UPDATE)\s+(?:["\[]?[A-Za-z_][\w$#]*["\]]?\.)?["\[]?([A-Za-z_][\w$#]*)',
+    re.I,
+)
 
 
 def tables_in_sql(sql: str) -> set[str]:
@@ -30,7 +34,8 @@ def import_trace(path: Path, fmt: str = "statements") -> list[str]:
         raise NotImplementedError(
             f"trace format {fmt!r} needs a sample file before a parser is written"
         )
-    return [ln.strip() for ln in Path(path).read_text(encoding="utf-8").splitlines() if ln.strip()]
+    lines = Path(path).read_text(encoding="utf-8-sig").splitlines()
+    return [ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("--")]
 
 
 def record_harness_app_load(db: Path, app: str, path: str, out: Path) -> list[str]:
@@ -84,11 +89,13 @@ def propose_associations(
         if t is None:
             continue
         with eng.connect() as con:
-            res = con.execute(text(f'SELECT * FROM "{tname}"'))
-            sample = [dict(r) for r in res.mappings().fetchmany(200)]  # portable: no LIMIT
+            rows = con.execute(text(f'SELECT * FROM "{tname}"'))
+            sample = [dict(r) for r in rows.mappings().fetchmany(200)]  # portable: no LIMIT
         best = None
         for c in t.columns:
-            if c.name in t.pk:
+            # the table's own sole key cannot point at a parent; a column of a composite key
+            # (CUST_ID in (CUST_ID, ADDR_SEQ)) is the usual shape of a child table
+            if t.pk == [c.name]:
                 continue
             vals = {str(r[c.name]) for r in sample if r.get(c.name) is not None}
             if not vals:

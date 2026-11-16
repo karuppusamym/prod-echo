@@ -7,6 +7,12 @@ tag-attribute parser in robotlog.parse_selector. Activities of interest and what
 TypeInto (Text), Click, GetText/GetAttribute (output variable), SelectItem (Item), ExecuteQuery /
 ExecuteNonQuery (Sql), InvokeWorkflowFile (WorkflowFileName + arguments), Assign, NavigateTo /
 OpenBrowser (Url). Everything else is recorded by type only.
+
+Modern UI activities (Studio 21.10+, `uix:` namespace) are read too: `NApplicationCard` opens an
+app (its `TargetApp` carries the Url and window title), `NTypeInto`/`NClick`/`NGetText`/
+`NSelectItem`/`NSetText`/`NGetAttribute` map onto the classic types, and their target is the
+`TargetAnchorable` element: `ScopeSelectorArgument` (window, with the title) plus
+`FullSelectorArgument` (falling back to `FuzzySelectorArgument`). Invoked paths may use backslashes.
 """
 
 from __future__ import annotations
@@ -32,6 +38,18 @@ IO = {
     "GetText": "read",
     "GetAttribute": "read",
     "SelectItem": "select",
+}
+
+
+# Modern activity -> (classic type, property holding the value)
+MODERN = {
+    "NTypeInto": ("TypeInto", "Text"),
+    "NSetText": ("SetText", "Text"),
+    "NClick": ("Click", None),
+    "NGetText": ("GetText", "Text"),
+    "NGetAttribute": ("GetAttribute", "Result"),
+    "NSelectItem": ("SelectItem", "Item"),
+    "NCheckState": ("WaitUiElementAppear", None),
 }
 
 
@@ -77,6 +95,19 @@ def _target_selector(el: ET.Element) -> str | None:
     for child in el.iter():
         if _local(child.tag) == "Target" and child.get("Selector"):
             return child.get("Selector")
+        if _local(child.tag) == "TargetAnchorable":
+            full = child.get("FullSelectorArgument") or child.get("FuzzySelectorArgument") or ""
+            scope = child.get("ScopeSelectorArgument") or ""
+            return (scope + full) or None
+    return None
+
+
+def _app_card_url(el: ET.Element) -> str | None:
+    for child in el:
+        if _local(child.tag).endswith(".TargetApp"):
+            for app in child:
+                if app.get("Url"):
+                    return app.get("Url")
     return None
 
 
@@ -94,6 +125,9 @@ def _walk_file(
     stack = stack + [rel]
     for el in tree.getroot().iter():
         t = _local(el.tag)
+        modern_attr = None
+        if t in MODERN:
+            t, modern_attr = MODERN[t]
         if (
             t in ("Activity", "Sequence", "Members", "Property", "Variable", "Target")
             or "." in t
@@ -116,14 +150,17 @@ def _walk_file(
                 "GetAttribute": "Result",
                 "SelectItem": "Item",
             }.get(t)
+            attr = modern_attr or attr
             v = _var(el.get(attr)) if attr else None
             a.value_var = scope.get(v, v) if v else None
         elif t in ("NavigateTo", "OpenBrowser"):
             a.url = el.get("Url")
+        elif t == "NApplicationCard":
+            a.url = _app_card_url(el)
         elif t in ("ExecuteQuery", "ExecuteNonQuery"):
             a.sql = el.get("Sql")
         elif t == "InvokeWorkflowFile":
-            a.invoke = el.get("WorkflowFileName")
+            a.invoke = (el.get("WorkflowFileName") or "").replace("\\", "/") or None
             for arg in el.iter():
                 key = arg.get("{http://schemas.microsoft.com/winfx/2006/xaml}Key")
                 if key and _local(arg.tag) in ("InArgument", "OutArgument"):

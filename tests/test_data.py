@@ -166,7 +166,7 @@ def test_unknown_trace_formats_are_refused_until_a_sample_exists(tmp_path: Path)
 
 
 # ---------------------------------------------------------------- I-16
-def test_own_extractor_produces_row_sets_and_synapse_stub_round_trips(
+def test_own_extractor_produces_row_sets(
     ws,
     eng,
     sc,  # noqa: ANN001
@@ -181,16 +181,7 @@ def test_own_extractor_produces_row_sets_and_synapse_stub_round_trips(
     plan = own.plan(sp, "T1")
     rs = own.run(plan, tmp_path / "own")
     assert rs.rows["CUSTOMER"] and "LOAN" not in rs.rows  # LOAN is preload: never
-    syn = extract.SynapseExtractor(own, tmp_path / "job", tmp_path / "synapse_out")
-    plan2 = syn.plan(sp, "T1")
-    assert (tmp_path / "job" / "CUSTOMER.sql").exists()
-    # stand-in for Synapse: run the job's queries and drop JSON where it reads them back
-    from echo.util import write_json
-
-    for t, rows in rs.rows.items():
-        write_json(tmp_path / "synapse_out" / f"{t}.json", rows)
-    back = syn.run(plan2, tmp_path / "syn")
-    assert back.counts() == rs.counts()
+    assert rs.counts() == own.run(plan, tmp_path / "again").counts()  # deterministic
 
 
 # ---------------------------------------------------------------- I-18

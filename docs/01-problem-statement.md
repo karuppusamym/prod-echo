@@ -12,7 +12,7 @@ A framework and two environments owned by the migration team:
 
 - **Design environment.** Captures taken alongside the bots in production (robot logs, NetLog,
   CDP/HAR, DOM + screenshot per screen, the UiPath XAML) are analyzed into a process map and a bot
-  trace. Synapse (or our own extractor) copies the data the process needs, by entity closure, into
+  trace. An extractor copies the data the process needs, by entity closure, into
   an Echo database. A lightweight app generator rebuilds the screens from the captured DOM, bound to
   that database, with the same selectors.
 - **Execution environment.** The generated apps run over the Echo DB. Any agentic solution drives

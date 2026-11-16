@@ -1,0 +1,79 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Main"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:mva="clr-namespace:Microsoft.VisualBasic.Activities;assembly=System.Activities"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- SYNTHETIC SAMPLE (Prod Echo rehearsal): hand-written in the Studio 23.10 XAML format. -->
+  <x:Members>
+    <x:Property Name="in_QueueName" Type="InArgument(x:String)" />
+  </x:Members>
+  <mva:VisualBasic.Settings>
+    <x:Null />
+  </mva:VisualBasic.Settings>
+  <sap2010:WorkflowViewState.IdRef>Main_1</sap2010:WorkflowViewState.IdRef>
+  <Sequence DisplayName="Main" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="ui:QueueItem" Name="txn" />
+      <Variable x:TypeArguments="x:String" Name="custId" />
+      <Variable x:TypeArguments="x:String" Name="loanNo" />
+      <Variable x:TypeArguments="x:String" Name="quoteId" />
+      <Variable x:TypeArguments="x:String" Name="quoteAmt" />
+    </Sequence.Variables>
+    <ui:GetQueueItem DisplayName="Get Transaction Item" QueueType="LoanPayoffRequests" TransactionItem="[txn]" TimeoutMS="30000" sap2010:WorkflowViewState.IdRef="GetQueueItem_1" />
+    <Assign DisplayName="Assign custId" sap2010:WorkflowViewState.IdRef="Assign_1">
+      <Assign.To>
+        <OutArgument x:TypeArguments="x:String">[custId]</OutArgument>
+      </Assign.To>
+      <Assign.Value>
+        <InArgument x:TypeArguments="x:String">[txn.SpecificContent("CustomerId").ToString]</InArgument>
+      </Assign.Value>
+    </Assign>
+    <TryCatch DisplayName="Try process transaction" sap2010:WorkflowViewState.IdRef="TryCatch_1">
+      <TryCatch.Try>
+        <Sequence DisplayName="Process transaction" sap2010:WorkflowViewState.IdRef="Sequence_2">
+          <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" ContinueOnError="{x:Null}" DisplayName="Invoke CustomerHub_GetCustomer" UnSafe="False" WorkflowFileName="Workflows\CustomerHub\GetCustomer.xaml" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_1">
+            <ui:InvokeWorkflowFile.Arguments>
+              <InArgument x:TypeArguments="x:String" x:Key="in_CustId">[custId]</InArgument>
+              <OutArgument x:TypeArguments="x:String" x:Key="out_LoanNo">[loanNo]</OutArgument>
+            </ui:InvokeWorkflowFile.Arguments>
+          </ui:InvokeWorkflowFile>
+          <ui:RetryScope DisplayName="Retry Scope quote" NumberOfRetries="2" RetryInterval="00:00:05" sap2010:WorkflowViewState.IdRef="RetryScope_1">
+            <ui:RetryScope.ActivityBody>
+              <ActivityAction>
+                <ui:InvokeWorkflowFile ArgumentsVariable="{x:Null}" ContinueOnError="{x:Null}" DisplayName="Invoke LoanServicing_CreatePayoffQuote" UnSafe="False" WorkflowFileName="Workflows\LoanServicing\CreatePayoffQuote.xaml" sap2010:WorkflowViewState.IdRef="InvokeWorkflowFile_2">
+                  <ui:InvokeWorkflowFile.Arguments>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_LoanNo">[loanNo]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_Reason">[txn.SpecificContent("Reason").ToString]</InArgument>
+                    <InArgument x:TypeArguments="x:String" x:Key="in_PayoffDate">[txn.SpecificContent("PayoffDate").ToString]</InArgument>
+                    <OutArgument x:TypeArguments="x:String" x:Key="out_QuoteId">[quoteId]</OutArgument>
+                    <OutArgument x:TypeArguments="x:String" x:Key="out_QuoteAmt">[quoteAmt]</OutArgument>
+                  </ui:InvokeWorkflowFile.Arguments>
+                </ui:InvokeWorkflowFile>
+              </ActivityAction>
+            </ui:RetryScope.ActivityBody>
+            <ui:RetryScope.Condition>
+              <ActivityFunc x:TypeArguments="x:Boolean" />
+            </ui:RetryScope.Condition>
+          </ui:RetryScope>
+          <ui:ExecuteNonQuery ContinueOnError="{x:Null}" TimeoutMS="{x:Null}" AffectedRecords="{x:Null}" DisplayName="Write quote to tracker" ExistingDbConnection="{x:Null}" ProviderName="System.Data.SqlClient" Sql="INSERT INTO RPA_TRACKER (QUEUE_REF, LOAN_NO, QUOTE_ID, QUOTE_AMT) VALUES (@ref, @loan, @quote, @amt)" sap2010:WorkflowViewState.IdRef="ExecuteNonQuery_1" />
+          <ui:SetTransactionStatus DisplayName="Set Transaction Status Successful" Status="Successful" TransactionItem="[txn]" sap2010:WorkflowViewState.IdRef="SetTransactionStatus_1" />
+        </Sequence>
+      </TryCatch.Try>
+      <TryCatch.Catches>
+        <Catch x:TypeArguments="ui:BusinessRuleException">
+          <ActivityAction x:TypeArguments="ui:BusinessRuleException">
+            <ActivityAction.Argument>
+              <DelegateInArgument x:TypeArguments="ui:BusinessRuleException" Name="bre" />
+            </ActivityAction.Argument>
+            <ui:SetTransactionStatus DisplayName="Set Transaction Status Business Exception" Status="Failed" ErrorType="Business" TransactionItem="[txn]" sap2010:WorkflowViewState.IdRef="SetTransactionStatus_2" />
+          </ActivityAction>
+        </Catch>
+      </TryCatch.Catches>
+    </TryCatch>
+    <ui:LogMessage DisplayName="Log Message done" Level="Info" Message="[&quot;Quote &quot; + quoteId + &quot; created&quot;]" sap2010:WorkflowViewState.IdRef="LogMessage_1" />
+  </Sequence>
+</Activity>

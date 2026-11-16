@@ -5,7 +5,13 @@ a type/length filter), then probed by equality, one row at a time.
 Confidence = share of the field's observed values found in the column, divided among the
 columns that hold them, boosted when the column name resembles the field name. A copy of a key
 in a child table (an FK column referencing the bound column) is folded into its parent as
-`also_in` instead of competing with it. Humans confirm binds below 0.8.
+`also_in` instead of competing with it; so is a column that copies another table's sole key by
+name without a declared FK (part of a composite key, say). Humans confirm binds below 0.8.
+
+Screens show stored values formatted. A value is also tried in the forms a column of that type
+would hold: digits without thousands separators for numeric columns (18,442.17), and a date for
+DATE columns from the common day/month orders (20/11/2026, 11/20/2026, 2026-11-20, 20-Nov-2026,
+20.11.2026). The form that matched is recorded as the candidate's `formatter`.
 """
 
 from __future__ import annotations
@@ -13,7 +19,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import defaultdict
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, date, datetime, tzinfo
 
 from sqlalchemy import Engine, text
 
@@ -24,6 +30,15 @@ from echo.util import to_ms
 log = logging.getLogger(__name__)
 NUMERIC_TYPES = re.compile(r"INT|NUMERIC|DECIMAL|NUMBER|FLOAT|REAL|DOUBLE", re.I)
 STRING_TYPES = re.compile(r"CHAR|TEXT|CLOB|STRING", re.I)
+DATE_TYPES = re.compile(r"DATE", re.I)  # DATE, not TIMESTAMP/DATETIME: a typed date has no time
+GROUPED = re.compile(r"-?\d{1,3}(,\d{3})+(\.\d+)?")
+DATE_FORMATS = [
+    ("%d/%m/%Y", "dd/MM/yyyy"),
+    ("%m/%d/%Y", "MM/dd/yyyy"),
+    ("%Y-%m-%d", "yyyy-MM-dd"),
+    ("%d-%b-%Y", "dd-MMM-yyyy"),
+    ("%d.%m.%Y", "dd.MM.yyyy"),
+]
 THRESHOLD = 0.8
 
 
@@ -31,16 +46,42 @@ def _is_num(v: str) -> bool:
     return bool(re.fullmatch(r"-?\d+(\.\d+)?", v))
 
 
-def candidate_columns(schema: Schema, value: str) -> list[tuple[Table, str]]:
-    out = []
+def _num(v: str) -> int | float:
+    return float(v) if "." in v else int(v)
+
+
+def variants(value: str, col_type: str) -> list[tuple[object, str | None]]:
+    """The values a non-string column of this type could hold for what the screen showed."""
+    v = value.strip()
+    if NUMERIC_TYPES.search(col_type):
+        if _is_num(v) and len(v.lstrip("-").split(".")[0]) <= 18:
+            return [(_num(v), None)]
+        if GROUPED.fullmatch(v):
+            return [(_num(v.replace(",", "")), "number_grouped")]
+        return []
+    if DATE_TYPES.search(col_type) and not re.search(r"TIME", col_type, re.I):
+        out: list[tuple[object, str | None]] = []
+        for fmt, name in DATE_FORMATS:
+            try:
+                d = datetime.strptime(v, fmt).date()
+            except ValueError:
+                continue
+            if all(d != x for x, _ in out):
+                out.append((d, f"date:{name}"))
+        return out
+    return []
+
+
+def candidate_columns(schema: Schema, value: str) -> list[tuple[Table, str, object, str | None]]:
+    out: list[tuple[Table, str, object, str | None]] = []
     for t in schema.tables:
         for c in t.columns:
-            if NUMERIC_TYPES.search(c.type):
-                if _is_num(value) and len(value.lstrip("-").split(".")[0]) <= 18:
-                    out.append((t, c.name))
-            elif STRING_TYPES.search(c.type):
+            if STRING_TYPES.search(c.type):
                 if c.length is None or c.length >= len(value) - 2:
-                    out.append((t, c.name))
+                    out.append((t, c.name, value, None))
+                continue
+            for probe, fmt in variants(value, c.type):
+                out.append((t, c.name, probe, fmt))
     return out
 
 
@@ -67,13 +108,10 @@ def name_similarity(field: str, column: str) -> float:
     return len(a & b) / len(a | b)
 
 
-def _probe(eng: Engine, t: Table, col: str, value: str) -> dict | None:
-    params = {"v": value}
-    is_num = _is_num(value)
+def _probe(eng: Engine, t: Table, col: str, value: object) -> dict | None:
+    sqlite = eng.dialect.name == "sqlite"  # SQLite stores dates as ISO text
+    params = {"v": value.isoformat() if isinstance(value, date) and sqlite else value}
     cond = f'"{col}" = :v'
-    c = t.col(col)
-    if c is not None and NUMERIC_TYPES.search(c.type) and is_num:
-        params["v"] = float(value) if "." in value else int(value)
     keys = ", ".join(f'"{k}"' for k in (t.pk or [col]))
     audit = f', "{t.audit_columns[0]}"' if t.audit_columns else ""
     order = f' ORDER BY "{t.audit_columns[0]}" DESC' if t.audit_columns else ""
@@ -121,11 +159,13 @@ def bind(
         uniq = list(dict.fromkeys(d["values"]))
         hits: dict[tuple[str, str], list[Evidence]] = defaultdict(list)
         written: dict[tuple[str, str], int] = defaultdict(int)
+        formats: dict[tuple[str, str], set[str | None]] = defaultdict(set)
         for v, run in zip(d["values"], d["runs"], strict=True):
-            for t, col in candidate_columns(schema, v):
-                row = _probe(eng, t, col, v)
+            for t, col, probe, fmt in candidate_columns(schema, v):
+                row = _probe(eng, t, col, probe)
                 if row is None:
                     continue
+                formats[(t.name, col)].add(fmt)
                 audit_val = row.pop(t.audit_columns[0], None) if t.audit_columns else None
                 if audit_val and run.get("ts") and _in_window(audit_val, run["ts"], tz):
                     written[(t.name, col)] += 1
@@ -145,6 +185,14 @@ def bind(
             if parent and parent in hits:
                 also[parent].append(f"{tc[0]}.{tc[1]}")
                 del hits[tc]
+        sole_key = {(t.name, t.pk[0]) for t in schema.tables if len(t.pk) == 1}
+        for tc in list(hits):
+            if tc in sole_key:
+                continue
+            parent = next((p for p in hits if p in sole_key and p[1] == tc[1]), None)
+            if parent:
+                also[parent].append(f"{tc[0]}.{tc[1]} (by name)")
+                del hits[tc]
         # A typed value found in a row the run itself wrote is where the value went; columns
         # that merely happen to hold the same value elsewhere are demoted, not dropped.
         strong = {tc for tc in hits if written.get(tc)} if d["io"] != "read" else set()
@@ -156,7 +204,14 @@ def bind(
             if strong and (tname, col) not in strong:
                 conf *= 0.25
             conf = round(min(0.99, conf), 2)
-            c = Candidate(table=tname, column=col, confidence=conf, evidence=evs[:5])
+            fmts = formats.get((tname, col), set())
+            c = Candidate(
+                table=tname,
+                column=col,
+                confidence=conf,
+                evidence=evs[:5],
+                formatter=next(iter(fmts)) if len(fmts) == 1 else None,
+            )
             if also.get((tname, col)):
                 c.evidence.append(
                     Evidence(

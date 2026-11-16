@@ -43,7 +43,19 @@ def origin(url: str) -> str:
     return f"{u.scheme}://{u.netloc}"
 
 
-def _find_field(pm: ProcessMap, selector: dict | None):  # noqa: ANN202
+def _find_field(pm: ProcessMap, selector: dict | None, display: str | None = None):  # noqa: ANN202
+    """The process-map field an activity touched: by selector (title + element) when the log
+    carries one, else by the activity's display name when exactly one field has it (Verbose logs
+    of modern activities carry no selector)."""
+    if not selector:
+        hits = [
+            (app, s, f)
+            for app in pm.apps
+            for s in app.screens
+            for f in s.fields
+            if display and f.model_extra.get("display") == display
+        ]
+        return hits[0] if len(hits) == 1 else None
     title = (selector or {}).get("title")
     sname, fname = screen_name(title), field_name(selector)
     for app in pm.apps:
@@ -110,7 +122,12 @@ def analyze(bundle: Path, process_map: ProcessMap) -> dict:
             kind = ACTION.get(a["activity"])
             if kind is None:
                 continue
-            hit = _find_field(pm, a["selector"])
+            if a.get("state") == "Faulted":
+                gaps.append(
+                    {"run_id": t.run_id, "kind": "activity_faulted", "display": a["display"]}
+                )
+                continue
+            hit = _find_field(pm, a["selector"], a["display"])
             c = by_seq.get(a["seq"])
             if hit is None:
                 gaps.append(
@@ -143,7 +160,8 @@ def analyze(bundle: Path, process_map: ProcessMap) -> dict:
             elif kind == "select":
                 value = (vals.get("in") or {}).get("Item")
             elif kind == "read":
-                value = (vals.get("out") or {}).get("Value")
+                out_vals = vals.get("out") or {}
+                value = out_vals.get("Value", out_vals.get("Text"))
             act: Action | None = actions.get(c.action_id) if c and c.action_id else None
             if a["redacted"] and value is None:
                 name = act.target.name if act else fdef.name

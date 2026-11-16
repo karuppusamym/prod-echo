@@ -35,6 +35,10 @@ HARNESS_APPS = REPO / "harness" / "app_config"  # OWNER.md + rules.yaml for the 
 DEFAULT_MAX_CAPTURE_AGE_DAYS = 90
 
 
+class NeedsInput(RuntimeError):
+    """A step's input is not there yet; the message names it and the step that makes it."""
+
+
 class HarnessOnly(RuntimeError):
     pass
 
@@ -86,7 +90,21 @@ class Workspace:
 
     @property
     def bundle(self) -> Path:
-        return Path(read_json(self.work / "bundle.json")["bundle"])
+        p = self.work / "bundle.json"
+        if not p.exists():
+            raise NeedsInput(
+                f"no evidence bundle recorded for {self.process}: run "
+                "`echo --process <p> --xaml <dir> analyze process --bundle <bundle>` first"
+            )
+        return Path(read_json(p)["bundle"])
+
+    def require_screens(self, what: str) -> None:
+        if not (self.bundle / "screens" / "timeline.jsonl").exists():
+            raise NeedsInput(
+                f"{what} needs screen captures, and bundle {self.bundle.name} has none (robot log "
+                "only); it needs the capture from gate G1 (approval A: NetLog, CDP recorder and "
+                "screen capture on the robot)"
+            )
 
 
 def step_capture(ws: Workspace, runs: int = 3) -> Path:
@@ -107,6 +125,8 @@ def step_analyze(ws: Workspace, bundle: Path | None = None) -> dict:
     from echo.analyze.process import analyze, write_outputs
     from echo.analyze.xaml import parse_project, to_process_map
 
+    if bundle is not None:
+        write_json(ws.work / "bundle.json", {"bundle": str(Path(bundle).resolve())})
     bundle = bundle or ws.bundle
     pm = to_process_map(
         parse_project(ws.xaml_dir), xaml_version="synthetic-1" if ws.is_harness else None
@@ -130,6 +150,7 @@ def golden(ws: Workspace) -> BotTrace:
 def step_behaviors(ws: Workspace) -> dict:
     from echo.analyze.behaviors import infer
 
+    ws.require_screens("the behavior catalog")
     cat = infer([ws.bundle, *probe_bundles(ws)], process_map(ws))
     write_json(ws.work / "behaviors.json", cat.model_dump())
     return {"screens": len(cat.screens), "rules": sum(len(s.rules) for s in cat.screens)}
@@ -447,6 +468,7 @@ def step_generate(
     from echo.data.db import sqlite_engine
     from echo.generate.build import AppPolicy, Inputs, build_app
 
+    ws.require_screens("generating the apps")
     pm = process_map(ws)
     inp = Inputs(
         bundle=ws.bundle,

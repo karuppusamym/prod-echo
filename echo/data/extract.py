@@ -4,11 +4,9 @@
         def plan(self, spec, baseline) -> ExtractPlan   # the queries, per table
         def run(self, plan, out_dir) -> RowSets         # row sets per table (JSON on disk)
 
-`OwnExtractor` runs the closure engine over SQLAlchemy (harness, and the fallback).
-`SynapseExtractor` writes the closure as SQL files for Synapse to run and reads back the output
-location Synapse fills. The job format is to be agreed with the Synapse owner (open question 9);
-until then it is "one SQL file per table + a manifest", which round-trips through a fixture.
-The pipeline never knows which extractor ran.
+`OwnExtractor` runs the closure engine over SQLAlchemy; it is the extractor for the harness and
+for real replicas. Synapse is a metadata knowledge store reached by API, not an extractor
+(ADR-011); another implementation of this protocol would still slot in unchanged.
 """
 
 from __future__ import annotations
@@ -25,9 +23,10 @@ from sqlalchemy import Engine, text
 
 from echo.data.closure import closure, load_associations
 from echo.data.models import Schema, SubsetSpec
-from echo.util import from_jsonable, jsonable, read_json, sql_literal, utcnow, write_json
+from echo.util import from_jsonable, jsonable, read_json, utcnow, write_json
 
 log = logging.getLogger(__name__)
+BATCH = 500  # IN-list size for batched reads; Oracle caps IN lists at 1000
 
 
 class TableQuery(BaseModel):
@@ -272,62 +271,3 @@ class OwnExtractor:
             if row is not None:
                 out[tuple(k)] = dict(row)
         return out
-
-
-class SynapseExtractor:
-    """Writes the job for Synapse; reads back its output location. The wire format is a
-    placeholder until agreed with the Synapse owner (recorded in docs/06 when it is)."""
-
-    def __init__(self, inner: OwnExtractor, job_dir: Path, output_dir: Path) -> None:
-        self.inner, self.job_dir, self.output_dir = inner, Path(job_dir), Path(output_dir)
-
-    def plan(self, spec: SubsetSpec, baseline: str) -> ExtractPlan:
-        plan = self.inner.plan(spec, baseline)
-        self.job_dir.mkdir(parents=True, exist_ok=True)
-        for q in plan.tables:
-            (self.job_dir / f"{q.table}.sql").write_text(job_sql(q), encoding="utf-8")
-        write_json(
-            self.job_dir / "job.json",
-            {
-                "process": plan.process,
-                "baseline": baseline,
-                "tables": [q.table for q in plan.tables],
-                "output": "<output location>/<table>.json",
-                "entity_rows": plan.entity_rows,
-            },
-        )
-        return plan
-
-    def run(self, plan: ExtractPlan, out_dir: Path) -> RowSets:
-        rows = {}
-        for q in plan.tables:
-            p = self.output_dir / f"{q.table}.json"
-            if not p.exists():
-                raise FileNotFoundError(f"Synapse output missing for {q.table}: {p}")
-            rows[q.table] = read_json(p)
-        rs = RowSets(baseline=plan.baseline, rows=rows, entity_rows=plan.entity_rows)
-        rs.save(out_dir)
-        return rs
-
-
-BATCH = 500  # IN-list size; Oracle caps IN lists at 1000
-
-
-def job_sql(q: TableQuery) -> str:
-    """Portable SQL for one table of a Synapse job: standard single-quoted literals, IN lists in
-    chunks of at most BATCH, composite keys as OR-ed AND groups (no row-value IN)."""
-    if not q.keys:
-        return f'SELECT * FROM "{q.table}" WHERE 1 = 0;\n'
-    parts = []
-    for i in range(0, len(q.keys), BATCH):
-        chunk = q.keys[i : i + BATCH]
-        if len(q.key) == 1:
-            vals = ", ".join(sql_literal(k[0]) for k in chunk)
-            parts.append(f'SELECT * FROM "{q.table}" WHERE "{q.key[0]}" IN ({vals});')
-        else:
-            groups = []
-            for k in chunk:
-                conds = [f'"{c}" = {sql_literal(v)}' for c, v in zip(q.key, k, strict=True)]
-                groups.append("(" + " AND ".join(conds) + ")")
-            parts.append(f'SELECT * FROM "{q.table}" WHERE ' + " OR ".join(groups) + ";")
-    return "\n".join(parts) + "\n"

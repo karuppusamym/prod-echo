@@ -1,0 +1,49 @@
+{
+  "name": "LoanPayoffQuote",
+  "projectId": "6f1c2a9e-3b7d-4c51-9e20-5a8f0d4b7c13",
+  "description": "SYNTHETIC SAMPLE for Prod Echo rehearsal. Hand-written in the Studio 23.10 project format; not exported from any real system.",
+  "main": "Main.xaml",
+  "dependencies": {
+    "UiPath.Excel.Activities": "[2.22.4]",
+    "UiPath.Mail.Activities": "[1.23.1]",
+    "UiPath.System.Activities": "[23.10.4]",
+    "UiPath.UIAutomation.Activities": "[23.10.13]",
+    "UiPath.Database.Activities": "[1.9.0]"
+  },
+  "webServices": [],
+  "entitiesStores": [],
+  "schemaVersion": "4.0",
+  "studioVersion": "23.10.6.0",
+  "projectVersion": "1.0.12",
+  "runtimeOptions": {
+    "autoDispose": false,
+    "netFrameworkLazyLoading": false,
+    "isPausable": true,
+    "isAttended": false,
+    "requiresUserInteraction": true,
+    "supportsPersistence": false,
+    "workflowSerialization": "DataContract",
+    "excludedLoggedData": ["Private:*", "*password*", "*ssn*"],
+    "executionType": "Workflow",
+    "readyForPiP": false,
+    "startsInPiP": false,
+    "mustRestoreAllDependencies": true,
+    "pipType": "ChildSession"
+  },
+  "designOptions": {
+    "projectProfile": "Developement",
+    "outputType": "Process",
+    "libraryOptions": {"includeOriginalXaml": false, "privateWorkflows": []},
+    "processOptions": {"ignoredFiles": []},
+    "fileInfoCollection": [],
+    "modernBehavior": true
+  },
+  "expressionLanguage": "VisualBasic",
+  "entryPoints": [
+    {"filePath": "Main.xaml", "uniqueId": "0b6f9a2e-11c4-4e8a-a3d1-6f2c9e7b5a40", "input": [], "output": []}
+  ],
+  "isTemplate": false,
+  "templateProjectData": {},
+  "publishData": {},
+  "targetFramework": "Windows"
+}

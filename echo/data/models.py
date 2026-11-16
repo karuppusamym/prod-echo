@@ -59,6 +59,9 @@ class Candidate(BaseModel):
     column: str
     confidence: float
     evidence: list[Evidence] = Field(default_factory=list)
+    # how the screen shows the stored value: None (as stored), "number_grouped" (18,442.17),
+    # "date:dd/MM/yyyy" ...
+    formatter: str | None = None
 
 
 class Bind(BaseModel):

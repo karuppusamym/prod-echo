@@ -1,0 +1,60 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="GetCustomer"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:uix="http://schemas.uipath.com/workflow/activities/uix"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- SYNTHETIC SAMPLE (Prod Echo rehearsal): hand-written in the Studio 23.10 XAML format
+       (modern UI activities). Hostnames are reserved .example.test names. -->
+  <x:Members>
+    <x:Property Name="in_CustId" Type="InArgument(x:String)" />
+    <x:Property Name="out_LoanNo" Type="OutArgument(x:String)" />
+  </x:Members>
+  <Sequence DisplayName="CustomerHub_GetCustomer" sap2010:WorkflowViewState.IdRef="Sequence_1">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="custName" />
+      <Variable x:TypeArguments="x:String" Name="ssnLast4" />
+    </Sequence.Variables>
+    <uix:NApplicationCard AttachMode="SingleWindow" CloseMode="Never" DisplayName="Use Browser Edge: CustomerHub" HealingAgentBehavior="SameAsJob" OpenMode="IfNotOpen" WindowResize="None" sap2010:WorkflowViewState.IdRef="NApplicationCard_1">
+      <uix:NApplicationCard.Body>
+        <ActivityAction x:TypeArguments="x:Object">
+          <ActivityAction.Argument>
+            <DelegateInArgument x:TypeArguments="x:Object" Name="WSSessionData" />
+          </ActivityAction.Argument>
+          <Sequence DisplayName="Do" sap2010:WorkflowViewState.IdRef="Sequence_2">
+            <uix:NTypeInto ActivateBefore="True" ClickBeforeMode="Single" DisplayName="Type Into 'Customer ID'" EmptyFieldMode="SingleLine" HealingAgentBehavior="SameAsCard" InteractionMode="Simulate" Text="[in_CustId]" sap2010:WorkflowViewState.IdRef="NTypeInto_1">
+              <uix:NTypeInto.Target>
+                <uix:TargetAnchorable BrowserURL="customerhub.example.test/search" DesignTimeRectangle="412, 233, 260, 28" ElementType="InputBox" FullSelectorArgument="&lt;webctrl id='custId' tag='INPUT' /&gt;" FuzzySelectorArgument="&lt;webctrl id='custId' tag='INPUT' type='text' aaname='Customer ID' /&gt;" Guid="a1d1a6c2-7c1e-4bd0-9d2a-0f8e3b7c4d01" ScopeSelectorArgument="&lt;html app='msedge.exe' title='CustomerHub - Search' /&gt;" SearchSteps="Selector, FuzzySelector" Version="V6" />
+              </uix:NTypeInto.Target>
+            </uix:NTypeInto>
+            <uix:NClick ActivateBefore="True" ClickType="Single" DisplayName="Click 'Search'" HealingAgentBehavior="SameAsCard" InteractionMode="Simulate" KeyModifiers="None" MouseButton="Left" sap2010:WorkflowViewState.IdRef="NClick_1">
+              <uix:NClick.Target>
+                <uix:TargetAnchorable ElementType="Button" FullSelectorArgument="&lt;webctrl id='btnSearch' tag='BUTTON' /&gt;" FuzzySelectorArgument="&lt;webctrl aaname='Search' tag='BUTTON' /&gt;" Guid="a1d1a6c2-7c1e-4bd0-9d2a-0f8e3b7c4d02" ScopeSelectorArgument="&lt;html app='msedge.exe' title='CustomerHub - Search' /&gt;" SearchSteps="Selector, FuzzySelector" Version="V6" />
+              </uix:NClick.Target>
+            </uix:NClick>
+            <uix:NGetText DisplayName="Get Text 'Customer name'" HealingAgentBehavior="SameAsCard" Text="[custName]" sap2010:WorkflowViewState.IdRef="NGetText_1">
+              <uix:NGetText.Target>
+                <uix:TargetAnchorable ElementType="Text" FullSelectorArgument="&lt;webctrl id='profName' tag='SPAN' /&gt;" Guid="a1d1a6c2-7c1e-4bd0-9d2a-0f8e3b7c4d03" ScopeSelectorArgument="&lt;html app='msedge.exe' title='CustomerHub - Customer Profile' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NGetText.Target>
+            </uix:NGetText>
+            <uix:NGetText DisplayName="Get Text 'SSN last 4'" HealingAgentBehavior="SameAsCard" Private="True" Text="[ssnLast4]" sap2010:WorkflowViewState.IdRef="NGetText_2">
+              <uix:NGetText.Target>
+                <uix:TargetAnchorable ElementType="Text" FullSelectorArgument="&lt;webctrl id='profSsn4' tag='SPAN' /&gt;" Guid="a1d1a6c2-7c1e-4bd0-9d2a-0f8e3b7c4d04" ScopeSelectorArgument="&lt;html app='msedge.exe' title='CustomerHub - Customer Profile' /&gt;" SearchSteps="Selector" Version="V6" />
+              </uix:NGetText.Target>
+            </uix:NGetText>
+            <uix:NGetText DisplayName="Get Text 'Loan number'" HealingAgentBehavior="SameAsCard" Text="[out_LoanNo]" sap2010:WorkflowViewState.IdRef="NGetText_3">
+              <uix:NGetText.Target>
+                <uix:TargetAnchorable ElementType="Text" FullSelectorArgument="&lt;webctrl id='loanNo' tag='SPAN' /&gt;" FuzzySelectorArgument="&lt;webctrl tag='SPAN' class='loan-number' /&gt;" Guid="a1d1a6c2-7c1e-4bd0-9d2a-0f8e3b7c4d05" ScopeSelectorArgument="&lt;html app='msedge.exe' title='CustomerHub - Customer Profile' /&gt;" SearchSteps="Selector, FuzzySelector" Version="V6" />
+              </uix:NGetText.Target>
+            </uix:NGetText>
+          </Sequence>
+        </ActivityAction>
+      </uix:NApplicationCard.Body>
+      <uix:NApplicationCard.TargetApp>
+        <uix:TargetApp Area="0, 0, 1280, 1024" BrowserType="Edge" IconBase64="" Selector="&lt;html app='msedge.exe' title='CustomerHub - Search' /&gt;" Title="CustomerHub - Search" Url="https://customerhub.example.test/search" Version="V2" />
+      </uix:NApplicationCard.TargetApp>
+    </uix:NApplicationCard>
+  </Sequence>
+</Activity>

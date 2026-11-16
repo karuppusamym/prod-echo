@@ -180,3 +180,40 @@ writes `work/<process>/parity/<bundle>.html` with the bot's and the agent's scre
 and the findings, linking the bundles' PNGs rather than copying them. Tests: 134 fast (8 new in
 `tests/test_app_policy.py`) plus 15 browser. Still not code-closable: I-07..I-10, I-16, I-26 (see
 docs/10).
+
+## 2026-11-16 — Rehearsal on synthetic real-format samples; Synapse re-scoped
+
+**Samples.** `samples/loan_payoff` is a second, invented process (CustomerHub and Loan Servicing,
+payoff quotes from an Orchestrator queue) written in the real formats: a Studio 23.10
+modern-activity project, a robot NLog `Execution.log` and an Orchestrator CSV export
+(`scripts/make_loan_payoff_samples.py`), a Postgres 17 replica in a local container
+(`scripts/sample_replica.py up`; SELECT-only role, `lpo` schema), a `pg_stat_statements`-style load
+trace and the mask manifest the tool proposed. Running the real path on them with the global
+options found and fixed these gaps:
+- **XAML:** the parser now reads modern activities (`NApplicationCard`/`TargetAnchorable`) and
+  backslash invoke paths.
+- **Robot logs:** the parser now reads the NLog line prefix, the CSV export (re-sorted oldest
+  first) and modern activity names. A modern read whose value arrives on `Closed` is no longer
+  marked redacted. `Faulted` attempts become gaps instead of steps.
+- **Analyzer:** it matches activities by display name when the log has no selector.
+- **Binding:**
+  - grouped numbers and day/month dates bind, with a recorded `formatter`;
+  - a key copied by name into a composite key folds into its parent.
+- **Trace diff:**
+  - it reads schema-qualified and bracketed names and skips `--` comments;
+  - a composite-key column can be proposed as the child side of an association.
+- **CLI and stops:** `analyze process --bundle` records the bundle. A missing input or a refused
+  gate stops with one `error:` line and exit 2 (`NeedsInput`). `harness bot` refuses off the
+  harness.
+
+On the samples the chain ran analyzer → schema → bind (8 of 8 at 0.99) → classify → trace diff →
+spec → extract (sanitize passed, no source name on disk) → load (451 rows). Generation stops at
+"needs screen captures", which is the G1 capture. I-07..I-10 and I-26 stay unticked: the samples
+are synthetic and do not replace the team's real artifacts.
+
+**Synapse.** The project owner clarified that Synapse is a metadata knowledge store reached by
+API, not an extractor (ADR-011, superseding part of ADR-004). The `SynapseExtractor` stub and its
+job-SQL writer were removed, and I-16 is re-scoped to the `Extractor` protocol plus `OwnExtractor`
+and ticked. The Synapse metadata client is the new item I-16b, planned for later.
+
+Tests: 143 fast (9 new in `tests/test_samples.py`), 1 `replica`, 15 browser.

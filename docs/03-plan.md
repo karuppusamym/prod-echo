@@ -89,6 +89,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [ ] **I-07 XAML parser** · M
   _Status 2026-11-15: harness part done (synthetic XAML parsed, two apps, screens, fields typed/read). Pending: one real XAML from the team, PII-reviewed before check-in._
+  _Rehearsed 2026-11-16 on the synthetic real-format samples in `samples/loan_payoff` (a second process, not the harness; see docs/10): a Studio 23.10 modern-activity project (`NApplicationCard`, `TargetAnchorable`, queue items, TryCatch/RetryScope, backslash invoke paths) parses into two apps, five screens, the fields typed and read, one Private read and the cross-app flow. Still pending: the team's real project._
   Walk a UiPath project (`project.json`, `*.xaml`, invoked workflows). Extract per activity: type,
   display name, selector attributes (`app`, `title`, `aaname`, `name`, `cls`, `idx`), the variable
   or argument each `TypeInto`/`Click`/`GetText` uses, `ExecuteQuery`/`ExecuteNonQuery` SQL, and the
@@ -99,6 +100,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [ ] **I-08 Robot log parser** · M
   _Status 2026-11-15: harness part done (traces, redaction, unmapped fields, garbage tolerated). Pending: one real Verbose export (open question 2)._
+  _Rehearsed 2026-11-16 on the synthetic real-format samples in `samples/loan_payoff` (a second process, not the harness; see docs/10): the NLog `Execution.log` layout and an Orchestrator CSV export parse into the same two runs (+05:30 timestamps, modern activity names, `logF_*`/queue fields listed as unmapped, a Faulted retry, a truncated last line). Still pending: one real export, to confirm the shapes these samples assume._
   Verbose log (Orchestrator export JSON or NLog file) → per-run trace: activity, state, timestamps,
   arguments and variables in scope, redaction of `Private` activities and logging exclusions. Must
   tolerate missing fields; must never crash on a value it cannot parse.
@@ -107,6 +109,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [ ] **I-09 Process analyzer** · L
   _Status 2026-11-15: harness part done (scenario reproduced by hand-check, one step per activity, gaps listed on a partial bundle). Pending: the real bundle from gate G1._
+  _Rehearsed 2026-11-16 on the synthetic real-format samples in `samples/loan_payoff` (a second process, not the harness; see docs/10): on a G1-shaped bundle holding only a robot log, the analyzer writes both bot traces with their values (matching activities by display name, since Verbose logs carry no selectors) and lists `no_screen`, `activity_faulted` and `redacted_value_unrecovered` gaps instead of failing. Still pending: the real G1 bundle._
   Join I-07, I-08, I-06: for each bot activity, the app, screen, field, selector, typed or read value,
   the request(s) it caused, and the screen it was on. Emits the **bot trace** (the golden run used
   later for parity) and the first draft of the process map with per-app read/write hints.
@@ -127,6 +130,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [ ] **I-10 Schema inventory** · M
   _Status 2026-11-15: harness part done (schema pulled, ADDRESS relation absent). Pending: one real replica pulled read-only (approval B)._
+  _Rehearsed 2026-11-16 on the synthetic real-format samples in `samples/loan_payoff` (a second process, not the harness; see docs/10): a local Postgres replica (`scripts/sample_replica.py up`, SELECT-only role, `lpo` schema) pulls read-only: five tables, a composite key, declared FKs, the undeclared CUST_ADDR relation absent, audit columns and row counts; a write through the engine is refused. Bind, classify, trace diff, spec, extract, mask and load then ran on it. Still pending: a real replica (approval B)._
   `echo data schema pull` via SQLAlchemy inspector: tables, columns, types, PK, declared FKs,
   candidate audit columns (`UPDATED_AT`, `LAST_MOD_TS`, rowversion), row counts. Oracle, SQL Server
   and DB2 dialects behind one interface; SQLite for the harness.
@@ -166,16 +170,25 @@ item that needs it starts. Tickets are listed at the end.
   DoD: harness: the diff reports `ADDRESS` as read-but-not-in-closure; adding it to
   `associations.yaml` makes the diff empty.
 
-## Phase 4 — Echo DB: extract, mask, load (needs the Synapse team for the Synapse path)
+## Phase 4 — Echo DB: extract, mask, load
 
-- [ ] **I-16 Extractor interface and fallback** · M
-  _Status 2026-11-15: harness part done (OwnExtractor row sets; Synapse stub round-trips a fixture). Pending: interface agreed with the Synapse owner and the name recorded (approval D)._
+- [x] **I-16 Extractor interface** · M
+  _Re-scoped 2026-11-16 by the project owner: Synapse is a metadata knowledge store reached by API,
+  not an extractor (ADR-011). The `SynapseExtractor` stub was removed; the Synapse client is I-16b._
   `Extractor` protocol: given a subset spec and a baseline id, produce masked-ready row sets per
-  table. Two implementations: `OwnExtractor` (closure engine + SQLAlchemy, used by the harness and
-  as the fallback) and `SynapseExtractor` (stub that writes the closure queries Synapse must run and
-  reads back its output location; filled in with the Synapse team).
-  DoD: `OwnExtractor` produces row sets for the harness; the Synapse stub round-trips a fixture;
-  the interface contract is in `docs/06` and agreed with the Synapse owner (name recorded).
+  table. `OwnExtractor` (closure engine + SQLAlchemy) is the implementation for the harness and for
+  real replicas.
+  DoD: `OwnExtractor` produces row sets for the harness; the interface contract is in `docs/06`.
+  (Also ran on the synthetic Postgres replica.)
+
+- [ ] **I-16b Synapse metadata source** · M (later; needs the Synapse API and owner)
+  A client for the Synapse knowledge-store API that reads database metadata (table and column
+  descriptions, known relationships) and feeds it in as proposals: descriptions on the schema
+  inventory (I-10), candidate associations for the closure (I-15), suggested mask classes for the
+  data owner (I-17). Proposals are reviewed like any other; the replica stays authoritative.
+  DoD: against a recorded sample of the API's responses, the client adds descriptions and proposes
+  the ADDRESS association on the harness schema; the API, its owner and the sample's source are
+  recorded in docs/06. Not started: the API is not known yet (decision 2026-11-16: build later).
 
 - [x] **I-17 Masking library** · L
   `mask(row, manifest, key)`: HMAC dictionary substitution (names, address line 1), FF1 for
@@ -278,6 +291,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [ ] **I-26 First real process, end to end** · L (approvals A, B, C in place)
   _Status 2026-11-15: blocked on approvals A, B, C and gate G1. Everything up to it runs on the harness with `echo pipeline harness`._
+  _Rehearsed 2026-11-16 on the synthetic samples with the global options (`--process loan_payoff --db lpo --xaml samples/loan_payoff/uipath --mask-manifest samples/loan_payoff/mask.yaml`): analyzer → schema → bind → classify → trace diff → spec → extract/mask → load ran end to end into the Echo DB; the behavior catalog and generation stop with a one-line `needs screen captures` error, which is exactly the G1 capture. Still blocked on approvals A, B, C._
   Run the whole chain on the real bundle from G1 and the real replica from Phase 3: analyzer →
   spec → closure → mask → load → generate → runtime → an agent run → parity report.
   DoD: the parity report for the real process passes on three consecutive runs; the pilot exit
@@ -298,7 +312,7 @@ item that needs it starts. Tickets are listed at the end.
 - **B** — Read-only access to the replicas of the two pilot apps (Phase 3). Owner: DBAs + data owners.
 - **C** — Execution environment hosts for the Echo DB, generated apps and runtime API (Phase 5).
   Owner: infrastructure. Include: no route to production, separate service identities.
-- **D** — Synapse team engagement for the `SynapseExtractor` (Phase 4). Owner: Synapse team.
+- **D** — Synapse team: the knowledge-store API and a sample of its responses for I-16b (later). Owner: Synapse team.
 - **E** — UAT access to the pilot apps for behavior probing, with records reserved for form
   submits (I-22b, optional). Owner: app teams / environment owners.
 

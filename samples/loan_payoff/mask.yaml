@@ -1,0 +1,17 @@
+# Mask manifest for the SYNTHETIC loan_payoff replica, proposed by `echo mask manifest` and kept
+# as proposed. For real data the data owner decides the list and signs review.approved_by.
+app: loan_payoff
+key_env: ECHO_MASK_KEY
+columns:
+  CUST_ADDR.LINE1:     {class: address,    technique: dict_hmac, dict: streets_v1}
+  CUST_MSTR.FIRST_NM:  {class: first_name, technique: dict_hmac, dict: first_names_v1}
+  CUST_MSTR.LAST_NM:   {class: last_name,  technique: dict_hmac, dict: last_names_v1}
+  CUST_MSTR.FULL_NAME: {class: full_name,  technique: full_name}
+  CUST_MSTR.SSN:       {class: ssn,        technique: ff1_ssn_valid}
+  CUST_MSTR.DOB:       {class: date,       technique: entity_shift, entity_key: CUST_MSTR.CUST_ID}
+  CUST_MSTR.EMAIL:     {class: email,      technique: hmac_local_part}
+  CUST_MSTR.PHONE:     {class: phone,      technique: ff1_keep_area}
+review:
+  approved_by: rehearsal (synthetic data only)
+  date: '2026-11-16'
+  unclassified_policy: block

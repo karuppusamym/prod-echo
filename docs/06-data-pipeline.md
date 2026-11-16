@@ -16,6 +16,12 @@ Replica sessions are forced read-only: SQLite `query_only`; PostgreSQL session r
 `SET TRANSACTION READ ONLY`; SQL Server requires `ApplicationIntent=ReadOnly` in the URL; other
 dialects are refused. No `LIMIT` clauses are sent to replicas (rows are fetched with `fetchmany`).
 
+A replica whose tables live in a schema other than the login's default is reached through the
+connection string (PostgreSQL `?options=-csearch_path%3D<schema>`; Oracle: log in as, or alias to,
+the owner; SQL Server: the login's default schema). The driver for the dialect (`oracledb`,
+`pyodbc`, `psycopg`) is installed on the host that runs the pull; it is not a dependency of this
+repo. Rehearsed on the synthetic Postgres replica (`scripts/sample_replica.py up`; docs/10).
+
 ## Value binding (I-11)
 
 For each typed or read value in the bot trace, candidate columns are those whose type and length
@@ -24,6 +30,14 @@ FIRST 1 ROWS ONLY` per candidate, bounded by the run's time window where an audi
 Confidence = hits / candidates, boosted when the column name resembles the field label. Output:
 `binds.json` with the evidence rows (table, column, value, matched at). Humans confirm binds below
 0.8 before the spec is generated.
+
+Screens show stored values formatted, so a value is also tried in the form a column of that type
+holds: a grouped number (`18,442.17`) against numeric columns, and a date in the common orders
+(`dd/MM/yyyy`, `MM/dd/yyyy`, `yyyy-MM-dd`, `dd-MMM-yyyy`, `dd.MM.yyyy`; an ambiguous day/month is
+tried both ways) against DATE columns. The form that matched is the candidate's `formatter`
+(`number_grouped`, `date:dd/MM/yyyy`). A copy of a key folds into its parent: through a declared
+FK, or by name when the column is part of a composite key and another table has it as its sole key
+(`CUST_ADDR.CUST_ID` into `CUST_MSTR.CUST_ID`, listed as `also_in ... (by name)`).
 
 ## Read/write classification and provenance (I-12)
 
@@ -79,6 +93,12 @@ line in `associations.yaml`. `echo data trace diff` records App2 itself on the h
 the proposed associations; elsewhere it reads `work/<process>/traces/*.sql` (one statement per line)
 and writes proposals to `associations.proposed.yaml` for a human to review and merge.
 
+Trace files are one statement per line; lines starting with `--` are comments. Table names may be
+schema-qualified and quoted (`lpo."CUST_MSTR"`, `[dbo].[ACCT]`), as `pg_stat_statements` and an
+Extended Events export show them. A proposal matches a column of the missing table against the
+sole key of a closure table; a column of the missing table's own composite key counts (that is the
+usual shape of a child table, `(CUST_ID, ADDR_SEQ)`).
+
 ## Extractor interface (I-16)
 
 ```python
@@ -87,17 +107,17 @@ class Extractor(Protocol):
     def run(self, plan: ExtractPlan, out_dir: Path) -> RowSets: ...          # parquet/CSV per table
 ```
 
-`OwnExtractor` runs the closure engine over SQLAlchemy. `SynapseExtractor.plan` writes the closure
-queries in the form Synapse accepts (to agree with the Synapse team: SQL files, a job spec, or an API
-call) and `run` waits for Synapse's output location and reads it. The pipeline never knows which
-one ran. If Synapse cannot do incremental extraction by watermark, the fallback is a scheduled full
-subset rebuild; subsets are small by construction.
+`OwnExtractor` runs the closure engine over SQLAlchemy; it is the extractor for the harness and for
+real replicas. It reuses the rows the closure already read; any re-read is batched with `IN` lists
+of at most 500. Unmasked extracted rows are held in memory only; nothing unmasked is written to
+disk. Refresh is a full subset rebuild per baseline; subsets are small by construction.
 
-`OwnExtractor` reuses the rows the closure already read; any re-read is batched with `IN` lists of at
-most 500. The Synapse job SQL uses standard single-quoted literals in chunks of at most 500, with
-composite keys as OR-ed AND groups. Unmasked extracted rows are held in memory only; nothing
-unmasked is written to disk. The Synapse job format is still a placeholder until agreed (open
-question 9).
+Synapse is not an extractor (ADR-011, a decision of 2026-11-16). It is a knowledge store, reached
+over an API, that holds metadata about the databases: what tables and columns mean and how they
+relate. A Synapse client is planned as a *metadata source* (plan item I-16b, later): it would add
+descriptions and known relationships to the schema inventory (I-10), propose associations for the
+closure (I-15) and suggest mask classes for the data owner (I-17). Its API is not known yet, so
+nothing is coded against it.
 
 ## Masking (I-17)
 

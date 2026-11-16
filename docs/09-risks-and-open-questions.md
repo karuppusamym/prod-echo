@@ -10,7 +10,7 @@
 | Template binding cannot find a column for a displayed value | I-19 | Formatter set; human binding; literal fallback with a note |
 | Generated app accepts input the real app would reject | I-21 | Stated limit; client-side rules come from the behavior catalog and UAT probing (I-22b); server-side validations someone wrote down are enforced from `apps/<app>/rules.yaml`; unwritten ones are not; connected-env check per release |
 | Generated app drifts from the real app on release | after I-22 | App owner (`apps/<app>/OWNER.md`, required off the harness) re-captures after each release; the build fails past `ECHO_MAX_CAPTURE_AGE_DAYS` (default 90) |
-| Synapse cannot extract by closure or incremental watermark | I-16 | `OwnExtractor` fallback; full subset rebuild on a schedule |
+| Synapse metadata disagrees with the replica | I-16b | Synapse is a metadata source only (ADR-011); the replica's own schema and the load trace stay authoritative; proposals from either need a human |
 | Audit columns too coarse to take a pre-run closure | I-12 | Revert bot-entered fields by hand from the provenance map; note scaling limit |
 | Replica lag makes a write-side row invisible in the run window | I-12 | Widen window; classify on the next refresh; report `unclassified` rather than guess |
 | Pre-run state for mode B (downstream) starts from post-run data | I-21/I-25 | Starting status set explicitly in the spec; otherwise mode A only |
@@ -28,6 +28,6 @@
 6. Does the pilot app validate SSN or address against an external service? Those fields cannot be masked without a stub. (Before I-17)
 7. Does a customer crosswalk table exist between the two apps, or is identity only a shared account number? (Before I-13)
 8. Who is the data owner that ticks the mask manifest for each app? (Before I-17)
-9. What does Synapse accept as a job: SQL files, an API call, a config? Who owns it? (Before I-16)
+9. ~~What does Synapse accept as a job?~~ Answered 2026-11-16: Synapse is a metadata knowledge store reached by API, not an extractor (ADR-011). Open: its API and owner, before I-16b.
 10. Is a Postgres instance available for the Echo DB, or must it be the same engine as the source apps? Generated apps are engine-agnostic; the loader is not entirely. (Before I-18)
 11. Which agent framework will the first agent use, and can it run on hosts with no production route? (Before I-23)

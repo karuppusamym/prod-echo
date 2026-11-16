@@ -120,6 +120,7 @@ def harness_bot(
     from harness.bot import run_session
     from harness.server import start
 
+    _ws().require_harness("harness bot")
     h = start() if serve else None
     try:
         res = run_session(runs=runs, capture=capture_on, headless=not headed)
@@ -602,7 +603,16 @@ def pipeline_harness(
 
 
 def main() -> None:
-    app()
+    """Expected stops (a missing input, a refused gate) print one line and exit 2."""
+    from echo.data.db import NotReadOnly
+    from echo.generate.build import CaptureTooOld, LeakageError, NoOwner
+    from echo.pipeline import HarnessOnly, NeedsInput
+
+    try:
+        app()  # Typer handles usage errors and exit codes; command exceptions propagate here
+    except (NeedsInput, HarnessOnly, LeakageError, CaptureTooOld, NoOwner, NotReadOnly) as e:
+        typer.echo(f"error: {e}", err=True)
+        raise SystemExit(2) from None
 
 
 if __name__ == "__main__":

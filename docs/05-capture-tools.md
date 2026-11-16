@@ -31,6 +31,20 @@ Parser rules: tolerate missing `activityInfo`; `Private` activities arrive witho
 emitted `redacted: true`; unknown keys go to `unmapped_fields`. The run boundary is a `jobId` change
 or an "Execution started/ended" message.
 
+Accepted files (rehearsed on `samples/loan_payoff/robotlogs`, synthetic): the robot's NLog file
+(`<date>_Execution.log`, the JSON after the `HH:mm:ss.ffff Level ` prefix), plain JSON lines, a JSON
+array, and the Orchestrator Logs CSV export (the JSON is in the "Raw Message" column; rows are put
+back in time order because the UI lists newest first). Timestamps keep the robot host's offset and
+7 fractional digits. Modern activities (`UiPath.UIAutomationNext.Activities.NTypeInto`) are
+reported under the classic names; a modern read logs its value as the `Text` argument on the
+`Closed` entry, so an activity is redacted only when neither entry carried the value. The last
+state of each activity is kept: a `Faulted` activity (a RetryScope attempt that failed) is listed as
+an `activity_faulted` gap and is not a bot step. Verbose logs carry no selectors, so the analyzer
+matches an activity to the process map by selector when there is one, else by its display name
+when exactly one field has it. Custom log fields (REFramework `logF_*`), `queueName`,
+`transactionId` and `machineId` show up in `unmapped_fields`. A line cut off when the host stopped
+is skipped with a warning.
+
 ## NetLog (I-03)
 
 Launch: `chrome.exe --log-net-log="C:\echo\netlog\%SESSIONNAME%-%DATE%.json"` (Edge: same flag).
@@ -111,6 +125,16 @@ Activities of interest and the variable or argument they carry:
 
 Output: `process-map.json` skeleton (apps by `app`/`title` match, screens by title and URL hints,
 fields by selector, io = typed/read/click) for the analyzer to enrich with runtime evidence.
+
+Modern UI activities (Studio 21.10+, `uix:` namespace; rehearsed on `samples/loan_payoff/uipath`,
+synthetic) are read the same way: `NApplicationCard` opens an app (its `TargetApp` gives the Url,
+so the origin, and the window title); `NTypeInto`, `NClick`, `NGetText`, `NSelectItem`, `NSetText`
+and `NGetAttribute` map onto the classic types; the target is the `TargetAnchorable` element, whose
+`ScopeSelectorArgument` (window and title) and `FullSelectorArgument` (else
+`FuzzySelectorArgument`) together give the selector. A modern read's output is its `Text`
+property. `InvokeWorkflowFile` paths may use backslashes (`Workflows\CustomerHub\X.xaml`) and may
+sit inside `TryCatch` or `RetryScope`. Queue and transaction activities (`GetQueueItem`,
+`SetTransactionStatus`) are counted in `other_activity_types`.
 
 Run it with `echo analyze xaml <folder> [--out file]`; `echo analyze process --xaml <folder>` (global
 option `--xaml`) joins a project with a bundle.

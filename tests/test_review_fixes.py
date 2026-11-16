@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from echo.data import closure, schema
-from echo.data.extract import TableQuery, is_integer_type, job_sql, parse_window
+from echo.data.extract import is_integer_type, parse_window
 from echo.data.load import _eq
 from echo.util import from_jsonable, jsonable, parse_iso, parse_tz, sql_literal
 
@@ -79,14 +79,8 @@ def test_seed_window_units() -> None:
         parse_window("soon")
 
 
-def test_synapse_job_sql_uses_standard_literals_and_chunks() -> None:
-    q = TableQuery(table="T", key=["K"], sql="", keys=[["O'BRIEN"], [7]])
-    assert job_sql(q) == "SELECT * FROM \"T\" WHERE \"K\" IN ('O''BRIEN', 7);\n"
-    many = TableQuery(table="T", key=["K"], sql="", keys=[[i] for i in range(1200)])
-    assert job_sql(many).count("SELECT") == 3
-    comp = TableQuery(table="T", key=["A", "B"], sql="", keys=[[1, "x"]])
-    assert '("A" = 1 AND "B" = \'x\')' in job_sql(comp)
-    assert sql_literal(None) == "NULL"
+def test_sql_literal_quotes_standard_sql() -> None:
+    assert sql_literal(None) == "NULL" and sql_literal("O'BRIEN") == "'O''BRIEN'"
 
 
 def test_row_values_round_trip_through_json() -> None:

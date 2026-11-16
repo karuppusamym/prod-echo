@@ -1,6 +1,6 @@
 # ADR-004 Synapse behind an Extractor protocol with an in-repo fallback
 
-Status: accepted · 2026-11-10
+Status: accepted · 2026-11-10 · Synapse part superseded by ADR-011 (2026-11-16)
 
 ## Context
 Synapse is the in-house schema-and-data tool, built for text-to-SQL. It is the intended extractor

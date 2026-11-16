@@ -119,6 +119,17 @@ accepted.
   `tests/fixtures/harness_bundle` (regenerate with `python scripts/refresh_fixtures.py`).
 - `pytest -m browser tests/test_browser.py` — the live chain in Chromium: capture, behavior
   runtime, fidelity replay, parity with scripted agents, leases and refresh.
+- `pytest -m replica` — the synthetic Postgres replica (`python scripts/sample_replica.py up`, then
+  export the `ECHO_DB_LPO` it prints); skipped otherwise.
+
+## Rehearse the real path on synthetic samples
+
+`samples/loan_payoff` is a second, invented process written in the real formats: a modern-activity
+UiPath project, a robot NLog file and an Orchestrator CSV export, a Postgres replica, a load trace
+and a mask manifest. `docs/10-closing-the-pending-items.md` has the exact commands; with the global
+options they run analyzer → schema → bind → classify → trace diff → spec → extract → load, and
+generation stops with "needs screen captures" (the G1 capture). The samples are not real artifacts
+and do not close the plan's "one real ..." lines.
 
 ## Repository map
 
