@@ -98,10 +98,16 @@ def test_analyzer_reproduces_the_scenario_step_by_step(ws, golden) -> None:  # n
     assert ("app2", "search", "type", "acct") in steps
     for f in ("loanAmt", "term", "purpose", "ssn"):
         assert any(s[3] == f and s[2] in ("type", "select") for s in steps)
-    assert steps[-2:] == [
+    assert steps[-4:] == [
+        ("app2", "new_loan", "click", "ackChk"),  # inside the <ack-box> shadow root
         ("app2", "new_loan", "click", "submit"),
         ("app2", "loan_confirmation", "read", "loanNo"),
+        ("app2", "loan_confirmation", "read", "sumAmt"),  # inside the summary iframe
     ]
+    from echo.pipeline import process_map
+
+    pm = {f.name: f.selector for a in process_map(ws).apps for s in a.screens for f in s.fields}
+    assert pm["sumAmt"] == "iframe#sumFrame >> #sumAmt"
     vals = {s.field: s.value for s in golden.steps}
     assert vals["acct"] == "0048812231" and vals["custName"] == "JOHN SMITH"
 

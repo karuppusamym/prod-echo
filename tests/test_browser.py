@@ -82,7 +82,7 @@ def page(served):  # noqa: ANN001, ANN201
         b.close()
 
 
-def test_generated_app2_reproduces_the_four_behaviors(served, page) -> None:  # noqa: ANN001
+def test_generated_app2_reproduces_the_captured_behaviors(served, page) -> None:  # noqa: ANN001
     import time
 
     a2 = served.urls["app2"]
@@ -104,6 +104,97 @@ def test_generated_app2_reproduces_the_four_behaviors(served, page) -> None:  # 
     assert page.locator("#cosigner").is_visible()
     page.locator("#ssn").press_sequentially("123456789")
     assert page.input_value("#ssn") == "123-45-6789"
+    # the web component's checkbox lives in a declarative shadow root; the runtime's rule there
+    assert not page.locator("#ackNote").is_visible()
+    page.click("#ackChk")
+    page.wait_for_timeout(100)
+    assert page.locator("#ackNote").is_visible()
+
+
+def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path: Path) -> None:
+    """A page on 127.0.0.1 with a same-origin iframe, an iframe from localhost (another site:
+    an out-of-process frame), a web component with an open shadow root and a canvas."""
+    import socket
+    import threading
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from playwright.sync_api import sync_playwright
+
+    from harness.bot import _start_recorder
+
+    with socket.socket() as so:
+        so.bind(("127.0.0.1", 0))
+        port = so.getsockname()[1]
+    top = (
+        "<!doctype html><html><head><title>W - Main</title></head><body>"
+        '<ack-box id="ack"></ack-box>'
+        '<iframe id="same" src="/inner"></iframe>'
+        f'<iframe id="cross" src="http://localhost:{port}/inner"></iframe>'
+        '<canvas id="chart" width="200" height="80"></canvas><script>'
+        'customElements.define("ack-box", class extends HTMLElement { connectedCallback() {'
+        ' const r = this.attachShadow({mode: "open"});'
+        ' r.innerHTML = \'<input type="checkbox" id="ackChk"><p id="ackNote" hidden>OK</p>\';'
+        ' r.getElementById("ackChk").addEventListener("change", e => {'
+        ' r.getElementById("ackNote").hidden = !e.target.checked; }); } });'
+        'const g = document.getElementById("chart").getContext("2d");'
+        "g.fillRect(10, 10, 60, 60);</script></body></html>"
+    )
+    inner = '<!doctype html><html><body><span id="amt">12500</span><input id="note"></body></html>'
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            data = (inner if self.path.startswith("/inner") else top).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *a: object) -> None:
+            pass
+
+    srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    bundle, profile = tmp_path / "bundle", tmp_path / "profile"
+    bundle.mkdir()
+    try:
+        with sync_playwright() as pw:
+            ctx = pw.chromium.launch_persistent_context(
+                str(profile), headless=True, args=["--remote-debugging-port=0"]
+            )
+            rec = _start_recorder(profile, bundle)
+            pg = ctx.pages[0]
+            pg.goto(f"http://127.0.0.1:{port}/")
+            time.sleep(1.5)
+            pg.click("#ackChk")
+            time.sleep(0.8)
+            pg.frame_locator("#same").locator("#note").press_sequentially("hello", delay=20)
+            time.sleep(0.8)
+            pg.frame_locator("#cross").locator("#note").press_sequentially("xo", delay=20)
+            time.sleep(0.8)
+            pg.click("#chart", position={"x": 30, "y": 30})
+            time.sleep(1.0)
+            ctx.close()
+            assert rec.wait(timeout=30) == 0
+    finally:
+        srv.shutdown()
+    shots = [json.loads(p.read_text()) for p in (bundle / "screens").glob("*.json")]
+    last = max(shots, key=lambda s: s["n"])
+    assert {(f["key"], f["cross_origin"]) for f in last["frames"]} == {
+        ("iframe#same", False),
+        ("iframe#cross", True),
+    }
+    assert [o["key"] for o in last["opaque"]] == ["#chart"]
+    assert any(o["png"] for s in shots for o in s["opaque"])  # the canvas box was cropped
+    assert "shadowrootmode" in (bundle / "screens" / f"{last['n']}.html").read_text()
+    acts = [json.loads(x) for x in (bundle / "actions.jsonl").read_text().splitlines()]
+    got = {a["target"]["key"]: (a["event"], a["value"]) for a in acts}
+    assert got["#ack >>> #ackChk"] == ("change", "true")
+    assert got["iframe#same >> #note"] == ("input", "hello")
+    assert got["iframe#cross >> #note"] == ("input", "xo")
+    chart = next(a for a in acts if a["target"]["key"] == "#chart")
+    assert chart["opaque"] and chart["point"]["x"] == 30
 
 
 def test_a_value_set_without_events_is_submitted_as_empty_and_rejected(served, page) -> None:  # noqa: ANN001

@@ -102,6 +102,27 @@ with capture on.
 Not reproduced, by design: server-side rules, and any client behavior the bot never triggered
 (error messages it never saw, branches it never took). Continuous capture widens coverage over time.
 
+### Iframes, shadow DOM, canvas
+
+- A **same-origin iframe** becomes a page of its own in the package (`<screen>__frame<i>`,
+  `frame_of` in `app.json`), served on its captured path and bound like a screen: its record comes
+  from its own URL (`/loan/{p1}/summary` → `LOAN`), else the parent's (reported as a gap, since
+  those values then render empty). The parent's `<iframe src>` is bound like any attribute. The
+  frame page carries no runtime: the top page's runtime reaches into it (same origin) to listen to
+  events and apply rules addressed `iframe#.. >> ..`.
+- A **cross-origin or nested iframe** cannot be rebuilt from this app's evidence: its owner's `src`
+  becomes `about:blank`, it is marked `data-echo-opaque="cross_origin_frame"`, and
+  `generate-report.json` lists it under `opaque`.
+- **Shadow DOM** is kept as captured, as declarative shadow DOM: the browser attaches the root
+  without the app's script, slots inside it are bound, and the runtime resolves `#host >>> #x`.
+- **Canvas and embedded objects** are kept in place, empty: the script that drew a canvas is never
+  served, and an `embed`/`object` loses its `src`/`data` and fallback content (it may be a
+  customer's document). Each is marked `data-echo-opaque`; a click on one is logged as unobserved
+  (`opaque_region:<kind>`), so a run that depends on it is `unverified`, never `pass`. The
+  captured crops stay in the bundle for people; they are never served (they may show customer
+  data). The report lists every opaque element.
+- Attribute values bind only as whole tokens (a value `MMA` does not bind inside `summary`).
+
 ## Re-capture on app release
 
 The generated app is a snapshot of the real app's DOM. When the real app changes, the agent passes

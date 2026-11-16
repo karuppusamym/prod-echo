@@ -3,7 +3,7 @@
   "url": "http://127.0.0.1:5101/search",
   "title": "CRM - Search",
   "dom_hash": "sha256:6144bb0a4bbd2e97c6f605c8d32357a6f6ed7f50383c67fbd54be05b1cbe64a5",
-  "captured": "2026-11-16T03:41:22.539Z",
+  "captured": "2026-11-16T17:40:22.948Z",
   "png": "1.png",
   "elements": [
     {
@@ -16,7 +16,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#custName"
     },
     {
       "tag": "button",
@@ -28,7 +29,10 @@
       "text": "Search",
       "editable": false,
       "type": "submit",
-      "visible": true
+      "visible": true,
+      "key": "#searchBtn"
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

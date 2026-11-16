@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit
 
-from echo.capture.screens import ScreenWriter
+from echo.capture.screens import FRAME_SEP, ScreenWriter, compose, prefix_frame
 from echo.util import iso_from_ms, write_json
 
 log = logging.getLogger(__name__)
@@ -238,6 +238,21 @@ class Recorder:
         har = HarWriter(self.bundle / "har" / f"{n}.har")
         self.hars.append(har)
         cdp = await context.new_cdp_session(page)
+        ps = PageState(main=cdp, har=har)
+        self._wire(cdp, ps, har, top=True)
+        cdp.on("Page.frameNavigated", lambda p: self._on_nav(har, p, ps))
+        cdp.on("Page.frameDetached", lambda p: ps.forget(p.get("frameId")))
+        await self._enable(cdp)
+        tree = await cdp.send("Page.getFrameTree")
+        ps.top_frame = tree["frameTree"]["frame"]["id"]
+        ps.learn_tree(tree["frameTree"])
+        # Cross-origin iframes run in their own renderer (OOPIF): they need their own session.
+        page.on("framenavigated", lambda fr: asyncio.ensure_future(self._oopif(context, fr, ps)))
+        for fr in page.frames[1:]:
+            await self._oopif(context, fr, ps)
+        log.info("attached to page %s", page.url)
+
+    def _wire(self, cdp, ps: PageState, har: HarWriter, top: bool) -> None:  # noqa: ANN001
         cdp.on("Network.requestWillBeSent", lambda p: self._on_request(har, p))
         cdp.on("Network.responseReceived", lambda p: self._on_response(har, p))
         cdp.on(
@@ -247,17 +262,64 @@ class Recorder:
         cdp.on("Network.loadingFailed", lambda p: self._on_failed(har, p))
         cdp.on(
             "Runtime.bindingCalled",
-            lambda p: self.queue.put_nowait((cdp, har, p))
+            lambda p: self.queue.put_nowait((ps, ps.frame_of(cdp, p.get("executionContextId")), p))
             if p.get("name") == "__echoEmit"
             else None,
         )
-        cdp.on("Page.frameNavigated", lambda p: self._on_nav(har, p))
+        cdp.on("Runtime.executionContextCreated", lambda p: self._on_context(cdp, ps, p))
+        cdp.on(
+            "Runtime.executionContextDestroyed",
+            lambda p: ps.contexts.pop((id(cdp), p.get("executionContextId")), None),
+        )
+        cdp.on(
+            "Runtime.executionContextsCleared",
+            lambda _p: [ps.contexts.pop(k) for k in list(ps.contexts) if k[0] == id(cdp)],
+        )
+        cdp.on(
+            "Page.frameAttached",
+            lambda p: ps.parents.__setitem__(p["frameId"], p.get("parentFrameId")),
+        )
+
+    async def _enable(self, cdp) -> None:  # noqa: ANN001
         await cdp.send("Network.enable", {"maxPostDataSize": 65536})
         await cdp.send("Page.enable")
-        await cdp.send("Runtime.enable")
         await cdp.send("Runtime.addBinding", {"name": "__echoEmit"})
         await cdp.send("Page.addScriptToEvaluateOnNewDocument", {"source": PAGE_SCRIPT})
-        log.info("attached to page %s", page.url)
+        await cdp.send("Runtime.enable")  # reports existing contexts: the script is run in each
+
+    def _on_context(self, cdp, ps: PageState, p: dict) -> None:  # noqa: ANN001
+        ctx = p.get("context") or {}
+        aux = ctx.get("auxData") or {}
+        if not aux.get("isDefault") or not aux.get("frameId"):
+            return
+        # one live document per frame: a new default context replaces the frame's old one
+        for k in [k for k, (_s, f) in ps.contexts.items() if f == aux["frameId"]]:
+            ps.contexts.pop(k, None)
+        ps.contexts[(id(cdp), ctx["id"])] = (cdp, aux["frameId"])
+        # documents that were already open when the recorder attached get the script now (it
+        # installs itself once per document; new documents get it from addScriptToEvaluate...)
+        asyncio.ensure_future(
+            _quiet(
+                cdp.send("Runtime.evaluate", {"expression": PAGE_SCRIPT, "contextId": ctx["id"]})
+            )
+        )
+
+    async def _oopif(self, context, frame, ps: PageState) -> None:  # noqa: ANN001
+        if frame.parent_frame is None or ps.oopif.get(frame) is not None:
+            return
+        try:
+            cdp = await context.new_cdp_session(frame)  # only out-of-process frames have one
+        except Exception:  # noqa: BLE001 - same-process frame: the page's session covers it
+            return
+        ps.oopif[frame] = cdp
+        self._wire(cdp, ps, ps.har, top=False)
+        try:
+            await self._enable(cdp)
+            tree = await cdp.send("Page.getFrameTree")
+            ps.learn_tree(tree["frameTree"], parent=None)
+        except Exception:  # noqa: BLE001 - the frame went away while attaching
+            ps.oopif.pop(frame, None)
+            log.info("out-of-process frame %s went away while attaching", frame.url)
 
     def _on_response(self, har: HarWriter, p: dict) -> None:
         e = har.entries.get(p["requestId"])
@@ -270,10 +332,15 @@ class Recorder:
             e["_done"] = True
             e["response"] = self._response({"status": 0, "statusText": p.get("errorText", "")})
 
-    def _on_nav(self, har: HarWriter, p: dict) -> None:
+    def _on_nav(self, har: HarWriter, p: dict, ps: PageState | None = None) -> None:
         frame = p.get("frame", {})
         if frame.get("parentId"):
+            if ps is not None:
+                ps.parents[frame["id"]] = frame["parentId"]
+                ps.urls[frame["id"]] = frame.get("url", "")
             return
+        if ps is not None:
+            ps.reset()
         har.pages.append(
             {
                 "startedDateTime": iso_from_ms(time.time() * 1000),
@@ -285,30 +352,194 @@ class Recorder:
 
     async def worker(self) -> None:
         while True:
-            cdp, _har, p = await self.queue.get()
+            ps, frame_id, p = await self.queue.get()
             try:
                 payload = json.loads(p["payload"])
-                if payload.get("kind") == "action":
-                    self.screens.on_action(payload)
-                elif payload.get("kind") == "settled":
-                    png = None
-                    if self.screens.want_png():
-                        try:
-                            shot = await cdp.send("Page.captureScreenshot", {"format": "png"})
-                            png = shot.get("data")
-                        except Exception:  # noqa: BLE001 - page may be gone
-                            png = None
-                    n = self.screens.add_screen(payload, png)
-                    self.screens.on_settled(payload, n)
+                await self._handle(ps, frame_id, payload)
             except Exception:  # noqa: BLE001 - never let one bad event stop the recorder
                 log.exception("failed to handle page event")
             finally:
                 self.queue.task_done()
 
+    async def _handle(self, ps: PageState, frame_id: str | None, payload: dict) -> None:
+        in_frame = frame_id is not None and frame_id != ps.top_frame
+        key = await ps.frame_key(frame_id) if in_frame else None
+        if in_frame and key is None:
+            return  # a frame we cannot place (detached, or its owner element is gone)
+        if payload.get("kind") == "action":
+            if key:
+                payload = prefix_frame(key, payload)
+            payload["before"] = ps.last_after if ps.last_after is not None else payload["before"]
+            self.screens.on_action(payload)
+            return
+        if payload.get("kind") != "settled":
+            return
+        # Compose the screen now: the top document and every frame, each asked for a fresh
+        # snapshot, so a screen never mixes a frame's old state with the page's new one.
+        top = payload if not in_frame else await ps.snapshot(ps.top_frame)
+        if top is None:
+            return
+        frames = []
+        for fid, fkey in await ps.child_frames():
+            rep = payload if fid == frame_id else await ps.snapshot(fid)
+            if rep is not None:
+                frames.append((fkey, rep, _origin(rep.get("url", "")) != _origin(top["url"])))
+        composed = compose(top, frames)
+        if in_frame:
+            composed["reason"] = "action" if payload.get("reason") == "action" else "frame"
+            for k in ("action_id", "event", "value", "typed", "forced"):
+                if k in payload:
+                    composed[k] = payload[k]
+            composed["ts"] = payload["ts"]
+        png, crops = None, {}
+        if self.screens.is_new(composed) and self.screens.want_png():
+            png = await _quiet(ps.main.send("Page.captureScreenshot", {"format": "png"}))
+            png = (png or {}).get("data")
+            for o in top.get("opaque") or []:  # crops of the top document's canvas/embeds
+                r = o.get("rect") or {}
+                if r.get("width") and r.get("height"):
+                    clip = {**{k: r[k] for k in ("x", "y", "width", "height")}, "scale": 1}
+                    shot = await _quiet(
+                        ps.main.send(
+                            "Page.captureScreenshot",
+                            {"format": "png", "clip": clip, "captureBeyondViewport": True},
+                        )
+                    )
+                    if shot:
+                        crops[o["key"]] = shot["data"]
+        n = self.screens.add_screen(composed, png, crops)
+        self.screens.on_settled(composed, n)
+        ps.last_after = composed.get("after")
+
     def flush_all(self) -> None:
         self.screens.close()
         for h in self.hars:
             h.flush()
+
+
+def _origin(url: str) -> str:
+    u = urlsplit(url)
+    return f"{u.scheme}://{u.netloc}"
+
+
+async def _quiet(coro):  # noqa: ANN001, ANN202
+    """Await a CDP call; None if the target went away meanwhile."""
+    try:
+        return await coro
+    except Exception:  # noqa: BLE001
+        return None
+
+
+class PageState:
+    """What the recorder knows about one tab: its sessions (the page's, plus one per
+    out-of-process frame), which execution context belongs to which frame, the frame tree, and
+    the last composed after-states (an action's before)."""
+
+    def __init__(self, main, har: "HarWriter") -> None:  # noqa: ANN001, UP037
+        self.main = main
+        self.har = har
+        self.top_frame: str | None = None
+        self.contexts: dict[tuple[int, int], tuple] = {}  # (session, ctx id) -> (session, frame)
+        self.parents: dict[str, str | None] = {}
+        self.urls: dict[str, str] = {}
+        self.keys: dict[str, str] = {}
+        self.oopif: dict = {}
+        self.last_after: list | None = None
+
+    def reset(self) -> None:
+        """The top document navigated: its frames are gone."""
+        self.parents = {k: v for k, v in self.parents.items() if k == self.top_frame}
+        self.keys.clear()
+        self.urls = {}
+        self.last_after = None
+
+    def forget(self, frame_id: str | None) -> None:
+        self.parents.pop(frame_id or "", None)
+        self.keys.pop(frame_id or "", None)
+
+    def learn_tree(self, node: dict, parent: str | None = "") -> None:
+        f = node["frame"]
+        if parent != "":
+            self.parents[f["id"]] = parent if parent is not None else f.get("parentId")
+        self.urls[f["id"]] = f.get("url", "")
+        for c in node.get("childFrames") or []:
+            self.learn_tree(c, f["id"])
+
+    def frame_of(self, cdp, ctx_id: int | None) -> str | None:  # noqa: ANN001
+        hit = self.contexts.get((id(cdp), ctx_id))
+        return hit[1] if hit else None
+
+    def _context(self, frame_id: str):  # noqa: ANN202
+        return next(((s, c) for (_, c), (s, f) in self.contexts.items() if f == frame_id), None)
+
+    async def snapshot(self, frame_id: str | None) -> dict | None:
+        hit = self._context(frame_id) if frame_id else None
+        if hit is None:
+            return None
+        cdp, ctx = hit
+        r = await _quiet(
+            cdp.send(
+                "Runtime.evaluate",
+                {
+                    "expression": "window.__echoSnapshot ? window.__echoSnapshot('compose') : null",
+                    "contextId": ctx,
+                    "returnByValue": True,
+                },
+            )
+        )
+        v = ((r or {}).get("result") or {}).get("value")
+        return json.loads(v) if isinstance(v, str) else None
+
+    async def child_frames(self) -> list[tuple[str, str]]:
+        """Every frame below the top one that has a script context, with its key, in tree order."""
+        out = []
+        seen = {f for (_s, f) in self.contexts.values()}
+        for fid in list(self.parents):
+            if fid == self.top_frame or fid not in seen:
+                continue
+            key = await self.frame_key(fid)
+            if key:
+                out.append((fid, key))
+        return out
+
+    async def frame_key(self, frame_id: str | None) -> str | None:
+        """`iframe#sumFrame` (nested: `iframe#a >> iframe#b`) from the owner elements."""
+        if frame_id is None or frame_id == self.top_frame:
+            return None
+        if frame_id in self.keys:
+            return self.keys[frame_id]
+        parent = self.parents.get(frame_id)
+        if parent is None:
+            return None
+        own = await self._owner_selector(frame_id)
+        if own is None:
+            return None
+        up = await self.frame_key(parent) if parent != self.top_frame else None
+        key = f"{up}{FRAME_SEP}{own}" if up else own
+        self.keys[frame_id] = key
+        return key
+
+    async def _owner_selector(self, frame_id: str) -> str | None:
+        for cdp in [self.main, *self.oopif.values()]:
+            owner = await _quiet(cdp.send("DOM.getFrameOwner", {"frameId": frame_id}))
+            if not owner:
+                continue
+            node = await _quiet(
+                cdp.send("DOM.describeNode", {"backendNodeId": owner["backendNodeId"]})
+            )
+            if not node:
+                continue
+            n = node["node"]
+            tag = n.get("localName") or "iframe"
+            a = dict(zip(n.get("attributes", [])[::2], n.get("attributes", [])[1::2], strict=False))
+            if a.get("id"):
+                return f"{tag}#{a['id']}"
+            if a.get("name"):
+                return f"{tag}[name='{a['name']}']"
+            if a.get("src"):
+                return f"{tag}[src='{a['src']}']"
+            return tag
+        return None
 
 
 async def _record(profile: Path, bundle: Path, all_bodies: bool) -> int:

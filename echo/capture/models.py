@@ -49,8 +49,36 @@ class Element(BaseModel):
     editable: bool = False
 
 
+class ScreenFrame(BaseModel):
+    """A frame's document inside a screen: `key` is the owner path (`iframe#sumFrame`, nested
+    frames `iframe#a >> iframe#b`); its elements and states are keyed `<key> >> <element key>`."""
+
+    model_config = ConfigDict(extra="allow")
+
+    key: str
+    url: str
+    title: str = ""
+    html: str  # file name under screens/
+    dom_hash: str
+    cross_origin: bool = False
+
+
+class Opaque(BaseModel):
+    """Content with no HTML to read (canvas, embedded PDF/plugin object): its box, and a crop of
+    the screenshot when one was taken."""
+
+    model_config = ConfigDict(extra="allow")
+
+    key: str
+    tag: str
+    type: str | None = None
+    rect: dict[str, float] = Field(default_factory=dict)
+    png: str | None = None
+
+
 class Screen(BaseModel):
-    """screens/<n>.json."""
+    """screens/<n>.json. `html` (screens/<n>.html) is the top-level document, open shadow roots
+    included as declarative shadow DOM; `frames` are the documents of its iframes."""
 
     n: int
     url: str
@@ -59,6 +87,8 @@ class Screen(BaseModel):
     captured: str
     png: str | None = None
     elements: list[Element] = Field(default_factory=list)
+    frames: list[ScreenFrame] = Field(default_factory=list)
+    opaque: list[Opaque] = Field(default_factory=list)
 
 
 class ElementState(BaseModel):
@@ -85,6 +115,8 @@ class Target(BaseModel):
     css: str | None = None
     text: str | None = None
     type: str | None = None
+    frame: str | None = None  # owner path when the element is inside an iframe
+    shadow: str | None = None  # host key when the element is inside an open shadow root
 
 
 class Action(BaseModel):
@@ -103,6 +135,8 @@ class Action(BaseModel):
     screen_after: int | None = None
     before: list[ElementState] = Field(default_factory=list)
     after: list[ElementState] = Field(default_factory=list)
+    point: dict[str, int] | None = None  # a click on opaque content: where, relative to it
+    opaque: bool = False
 
 
 class Correlated(BaseModel):

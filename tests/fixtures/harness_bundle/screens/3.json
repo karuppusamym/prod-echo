@@ -3,7 +3,7 @@
   "url": "http://127.0.0.1:5101/customer/4471",
   "title": "CRM - Customer",
   "dom_hash": "sha256:364e1abea111fa0e918e929d78c6f79f4d42ba78151027e91df31d98295c9032",
-  "captured": "2026-11-16T03:41:24.297Z",
+  "captured": "2026-11-16T17:40:24.602Z",
   "png": null,
   "elements": [
     {
@@ -16,7 +16,10 @@
       "text": "New search",
       "editable": false,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#backLink"
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

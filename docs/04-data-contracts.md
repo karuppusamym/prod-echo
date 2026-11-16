@@ -16,7 +16,9 @@ bundles/<session_id>/
   har/<n>.har            HAR 1.2 from the CDP recorder, one per browser session
   screens/<n>.html       DOM snapshot
   screens/<n>.png        screenshot
-  screens/<n>.json       url, title, hash, interactive elements with selectors
+  screens/<n>.json       url, title, hash, interactive elements with selectors, frames, opaque
+  screens/<n>.frame<i>.html   the document of the screen's i-th iframe
+  screens/<n>.opaque<i>.png   crop of a canvas / embedded object (when a screenshot was taken)
   runs/<run_id>.json     correlation: activity → screen, requests, HAR entries (written by I-06)
   actions.jsonl          observed actions with before/after element states (I-05, I-09a)
   screens/timeline.jsonl every settled point: which screen was showing when, with element states
@@ -64,15 +66,27 @@ Sibling output folders next to `bundles/`: `bundles-agent/` (scripted agent runs
    {"tag": "input", "id": "loanAmt", "name": "loanAmt", "label": "Loan amount",
     "css": "#loanAmt", "aria": null, "text": null, "editable": true},
    {"tag": "button", "id": "submit", "text": "Submit", "css": "#submit", "editable": false}
- ]}
+ ],
+ "frames": [{"key": "iframe#sumFrame", "url": "https://app2/loan/70000097/summary",
+             "title": "Loan summary", "html": "9.frame1.html", "dom_hash": "sha256:…",
+             "cross_origin": false}],
+ "opaque": [{"key": "#payChart", "tag": "canvas", "type": null,
+             "rect": {"x": 16, "y": 300, "width": 380, "height": 90}, "png": "9.opaque1.png"}]}
 ```
+
+Keys and selectors use one notation everywhere (capture, behaviors, process map, runtime):
+`iframe#sumFrame >> #sumAmt` is `#sumAmt` inside that iframe's document, `#ack >>> #ackChk` is
+`#ackChk` inside `#ack`'s open shadow root. Neither ` >> ` nor ` >>> ` is valid CSS, so a key
+cannot be misread as a selector of the other kind.
 
 `runs/<run_id>.json` (I-06, `RunCorrelation`): `{run_id, session_id, clock_offset_ms, activities: [{seq, ts,
 end, activity, display, selector, screen, action_id, requests: [request ids], har_entries: [indexes]}]}`.
 
 `actions.jsonl` line (I-05): `{action_id, event, ts, settled, target{key, tag, id, name, css, text,
-type}, value, typed, url_before, url_after, screen_before, screen_after, before: [element states],
-after: [element states]}`; an element state is `{key, tag, visible, enabled, value, text, options}`.
+type, frame, shadow}, value, typed, url_before, url_after, screen_before, screen_after,
+before: [element states], after: [element states], point, opaque}`; an element state is
+`{key, tag, visible, enabled, value, text, options, checked}`. A checkbox or radio is one `change`
+action whose value is `"true"`/`"false"`. `screen_before` is the screen when the action started.
 
 ## Robot log trace (I-08)
 

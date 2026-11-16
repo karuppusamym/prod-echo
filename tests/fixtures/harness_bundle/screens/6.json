@@ -2,8 +2,8 @@
   "n": 6,
   "url": "http://127.0.0.1:5102/loan/new?acct=0048812231",
   "title": "Core - New Loan",
-  "dom_hash": "sha256:1bd10dab769e80a380c34031d108064a1c5e66d125e06c1368efa573a04a20ad",
-  "captured": "2026-11-16T03:41:27.260Z",
+  "dom_hash": "sha256:bef132557080972d60c11749ad48dd7ac02ade061d0232c49bbdb8f2473ac4dd",
+  "captured": "2026-11-16T17:40:27.566Z",
   "png": "6.png",
   "elements": [
     {
@@ -16,7 +16,8 @@
       "text": null,
       "editable": false,
       "type": "hidden",
-      "visible": false
+      "visible": false,
+      "key": "#acctNo"
     },
     {
       "tag": "input",
@@ -28,7 +29,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#loanAmt"
     },
     {
       "tag": "input",
@@ -40,7 +42,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#term"
     },
     {
       "tag": "select",
@@ -52,7 +55,8 @@
       "text": "-- choose --\nAuto\nHome improvement\nPersonal",
       "editable": true,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#purpose"
     },
     {
       "tag": "select",
@@ -64,7 +68,8 @@
       "text": "-- choose --",
       "editable": true,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#subPurpose"
     },
     {
       "tag": "input",
@@ -76,7 +81,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": false
+      "visible": false,
+      "key": "#cosigner"
     },
     {
       "tag": "input",
@@ -88,7 +94,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#ssn"
     },
     {
       "tag": "button",
@@ -100,7 +107,24 @@
       "text": "Submit",
       "editable": false,
       "type": "submit",
-      "visible": true
+      "visible": true,
+      "key": "#submit"
+    },
+    {
+      "tag": "input",
+      "id": "ackChk",
+      "name": null,
+      "label": "I confirmed the customer's identity",
+      "css": "#ack >>> #ackChk",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "checkbox",
+      "visible": true,
+      "key": "#ack >>> #ackChk",
+      "shadow": true
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

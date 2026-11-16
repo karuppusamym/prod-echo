@@ -102,7 +102,7 @@ completes and the HAR contains its requests. If the workflow fails, fall back to
 
 Inside the same CDP session, an observe-only page script (`echo/capture/page_script.js`) is injected
 with `Page.addScriptToEvaluateOnNewDocument` and reports through a Runtime binding. It never changes
-the page. It produces: the DOM snapshot (`outerHTML`), the interactive element list (inputs, buttons,
+the page. It produces: the DOM snapshot (open shadow roots included; iframes below), the interactive element list (inputs, buttons,
 links, selects, contenteditable) with id, name, label text, aria-label, a stable CSS path and the
 visible text, a throttled PNG (`Page.captureScreenshot`), and for every user action (click, input,
 change; input bursts coalesced) a before/after pair of element states (visible, enabled, value,
@@ -112,6 +112,34 @@ collapsed, scripts removed). Navigation-causing actions pair with the next page'
 
 Why both DOM and PNG: the DOM is what the generator needs (selectors, structure); the PNG is what a
 human needs to recognize a screen and what parity reports show when a step differs.
+
+### Iframes, shadow DOM, canvas
+
+- **Iframes.** The page script runs in every frame, and the recorder knows which frame each report
+  came from (by execution context). Cross-origin iframes run in their own renderer
+  (out-of-process frames); the recorder opens a CDP session for each, with the same script,
+  binding and network capture. A screen is composed by the recorder whenever any frame settles: it
+  asks the top document and every frame for a fresh snapshot, so a screen never mixes a frame's
+  old state with the page's new one. Frame documents are written as `screens/<n>.frame<i>.html`;
+  the screen's DOM hash covers them. A frame is named by its owner element (`iframe#sumFrame`,
+  else `iframe[name='..']` / `iframe[src='..']`; nested: `iframe#a >> iframe#b`), and its elements,
+  states and actions are keyed `iframe#sumFrame >> #sumAmt`. A page's first snapshot waits for
+  its iframes to finish loading (up to the same 6 s cap).
+- **Shadow DOM.** Open shadow roots are walked: their elements are tracked and keyed
+  `#ack >>> #ackChk` (host key, then the key inside the root), mutations inside them are observed,
+  clicks are attributed to the inner element (the composed event path, not the retargeted host),
+  and `change`, which does not leave a shadow root, is listened to on each root. The snapshot HTML
+  carries them as declarative shadow DOM (`<template shadowrootmode="open">`, via
+  `Element.getHTML`, Chrome/Edge 125+). Closed shadow roots are not reachable from page script:
+  their content is only in the screenshot, and a click inside one is recorded on the host.
+- **Canvas and embedded objects.** `canvas`, `embed` and `object` have no HTML to read. Each is
+  listed in the screen's `opaque` with its box, and when a screenshot is taken the box is cropped
+  into `screens/<n>.opaque<i>.png` (top document only). A click on one is recorded with its point
+  relative to the element (`point`, `opaque: true`). No text is read from pixels: there is no
+  OCR anywhere in this repo, and none is planned (a value that exists only as pixels cannot be
+  bound to a column or masked, so it is not data the generator may use).
+- **Not a browser page.** A Citrix or remote-desktop window, a thick client or a green screen has
+  no DOM at all; it is out of scope (docs/03, "Deliberately not in this plan").
 
 ## XAML (I-07)
 

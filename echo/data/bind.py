@@ -193,9 +193,10 @@ def bind(
             if parent:
                 also[parent].append(f"{tc[0]}.{tc[1]} (by name)")
                 del hits[tc]
-        # A typed value found in a row the run itself wrote is where the value went; columns
-        # that merely happen to hold the same value elsewhere are demoted, not dropped.
-        strong = {tc for tc in hits if written.get(tc)} if d["io"] != "read" else set()
+        # A value found in a row the run itself wrote is where the value went (typed) or what the
+        # screen shows of it (read back, e.g. on a confirmation page); columns that merely happen
+        # to hold the same value elsewhere are demoted, not dropped.
+        strong = {tc for tc in hits if written.get(tc)}
         n_cols = max(1, len(strong) if strong else len(hits))
         cands = []
         for (tname, col), evs in hits.items():

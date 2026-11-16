@@ -9,9 +9,9 @@
       "SUB_PURPOSE_CD": "USED",
       "COSIGNER_NM": null,
       "STATUS_CD": "PENDING",
-      "CREATED_TS": "2026-11-16T03:41:29.795Z",
+      "CREATED_TS": "2026-11-16T17:40:30.336Z",
       "NOTES": null,
-      "UPDATED_AT": "2026-11-16T03:41:29.795Z"
+      "UPDATED_AT": "2026-11-16T17:40:30.336Z"
     },
     {
       "LOAN_NO": 70000098,
@@ -22,9 +22,9 @@
       "SUB_PURPOSE_CD": "SOLAR",
       "COSIGNER_NM": "SAM LEE",
       "STATUS_CD": "PENDING",
-      "CREATED_TS": "2026-11-16T03:41:38.337Z",
+      "CREATED_TS": "2026-11-16T17:40:39.602Z",
       "NOTES": null,
-      "UPDATED_AT": "2026-11-16T03:41:38.337Z"
+      "UPDATED_AT": "2026-11-16T17:40:39.602Z"
     },
     {
       "LOAN_NO": 70000099,
@@ -35,9 +35,9 @@
       "SUB_PURPOSE_CD": "TRAVEL",
       "COSIGNER_NM": null,
       "STATUS_CD": "PENDING",
-      "CREATED_TS": "2026-11-16T03:41:46.170Z",
+      "CREATED_TS": "2026-11-16T17:40:48.188Z",
       "NOTES": null,
-      "UPDATED_AT": "2026-11-16T03:41:46.170Z"
+      "UPDATED_AT": "2026-11-16T17:40:48.188Z"
     }
   ]
 }

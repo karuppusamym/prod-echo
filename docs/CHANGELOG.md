@@ -217,3 +217,34 @@ job-SQL writer were removed, and I-16 is re-scoped to the `Extractor` protocol p
 and ticked. The Synapse metadata client is the new item I-16b, planned for later.
 
 Tests: 143 fast (9 new in `tests/test_samples.py`), 1 `replica`, 15 browser.
+
+## 2026-11-16 — Iframes, shadow DOM and canvas
+
+The capture used to see only the top-level document. Now:
+- **Capture of frames.** The page script runs in every frame. The recorder opens a CDP session for
+  each cross-origin (out-of-process) frame. It composes each screen from fresh snapshots of the
+  top document and all its frames, keying frame content `iframe#sumFrame >> #sumAmt`.
+- **Shadow DOM.** Open shadow roots are walked, keyed `#ack >>> #ackChk`, observed, and serialized
+  as declarative shadow DOM.
+- **Opaque content.** Canvas and embedded objects are listed as `opaque` with their box and a
+  cropped PNG.
+- **Checkboxes.** A checkbox is one `change` action recorded as checked or unchecked.
+- **Analysis.** UiPath selectors through `<webctrl tag='IFRAME'/>` give the same frame-qualified
+  field selector.
+- **Generator.** A same-origin frame becomes its own bound page on its captured path. Cross-origin
+  and nested frames, canvas and embeds are kept empty, marked `data-echo-opaque` and reported.
+  Shadow DOM is kept.
+- **Runtime.** It resolves `>>`/`>>>` keys, listens inside frames and shadow roots, and logs clicks
+  on opaque content as unobserved.
+- **Harness.** The Core app gained a web component with a shadow-root checkbox on the loan form, a
+  summary iframe the bot reads the amount from, and a canvas chart. The fixture bundle was
+  regenerated.
+
+Fixes found on the way:
+- An action's `screen_before` is now the screen when it started (a frame settling first used to
+  move it).
+- Read values found in the row the run wrote win over coincidental matches.
+- Attribute values bind only as whole tokens ("MMA" bound inside "summary").
+
+No OCR is used anywhere. Tests: 151 fast (8 new in `tests/test_frames_shadow.py`), 16 browser
+(a new cross-origin frame capture test; the replica's shadow-root rule).

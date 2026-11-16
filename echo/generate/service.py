@@ -86,6 +86,9 @@ class Replica:
     def render_page(self, name: str, value: str | None) -> str:
         scr = next(s for s in self.cfg["screens"] if s["name"] == name)
         html = T.render(self.templates[name], self.ctx_for(scr["root"], value))
+        if scr.get("frame_of"):
+            # an iframe's document: the runtime in the top page reaches into it (same origin)
+            return html
         data = json.dumps(self.screen_behaviors(name)).replace("</", "<\\/")
         foot = (
             f'<footer class="echo-version">Prod Echo replica &middot; {self.cfg["app"]} '

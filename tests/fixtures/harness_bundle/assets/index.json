@@ -16,9 +16,9 @@
   {
     "url": "http://127.0.0.1:5102/static/app2.css",
     "path": "/static/app2.css",
-    "sha256": "058063dea46a814440e53915f9e9c6ea2117163f40a8d9ca01c131980db8ad2f",
+    "sha256": "b323cae8ba2c7f63b53e7ec9074d9ff6b9b5fdd217407b2618a427ba47a8f879",
     "mime": "text/css",
-    "file": "058063dea46a8144.css"
+    "file": "b323cae8ba2c7f63.css"
   },
   {
     "url": "http://127.0.0.1:5102/static/logo2.svg",

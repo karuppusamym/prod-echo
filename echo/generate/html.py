@@ -3,6 +3,7 @@ names and values (ids, names, classes, aria, data-*) survive byte-for-byte."""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from html import escape
@@ -138,8 +139,29 @@ def clone(n: Node, parent: Node | None = None) -> Node:
     return c
 
 
+def shadow_root(host: Node) -> Node | None:
+    """The declarative shadow root (<template shadowrootmode>) a captured host carries."""
+    return next(
+        (c for c in host.element_children() if c.tag == "template" and c.get("shadowrootmode")),
+        None,
+    )
+
+
 def select(root: Node, key: str) -> Node | None:
-    """Resolve the keys the page script produces: '#id', '[name=x]', or 'a > b:nth-of-type(n)'."""
+    """Resolve the keys the page script produces: '#id', '[name=x]', 'a > b:nth-of-type(n)',
+    'tag#id' / "tag[attr='v']" (frame owners), and '#host >>> #inner' (open shadow roots)."""
+    if " >>> " in key:
+        host_key, _, rest = key.partition(" >>> ")
+        host = select(root, host_key)
+        sr = shadow_root(host) if host is not None else None
+        return select(sr, rest) if sr is not None else None
+    m = re.fullmatch(r"([a-z][\w-]*)(?:#([\w-]+)|\[(\w+)='([^']*)'\])", key)
+    if m:
+        tag, id_, attr, val = m.groups()
+        for e in root.elements():
+            if e.tag == tag and (e.get("id") == id_ if id_ else e.get(attr) == val):
+                return e
+        return None
     if key.startswith("#") and " " not in key:
         return root.find_id(key[1:])
     if key.startswith("[name=") and key.endswith("]"):

@@ -3,7 +3,7 @@
   "url": "http://127.0.0.1:5102/search",
   "title": "Core - Search",
   "dom_hash": "sha256:91608164b8874852cc018c6d2a2e464c2c9c9ca22991a842618a74a4c9a25677",
-  "captured": "2026-11-16T03:41:25.048Z",
+  "captured": "2026-11-16T17:40:25.368Z",
   "png": "4.png",
   "elements": [
     {
@@ -16,7 +16,8 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#acct"
     },
     {
       "tag": "button",
@@ -28,7 +29,10 @@
       "text": "Find",
       "editable": false,
       "type": "button",
-      "visible": true
+      "visible": true,
+      "key": "#searchBtn"
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

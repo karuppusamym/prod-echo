@@ -1,34 +1,47 @@
 {
   "n": 9,
-  "url": "http://127.0.0.1:5101/results?name=LINDA+NGUYEN",
-  "title": "CRM - Results",
-  "dom_hash": "sha256:4af8540ac2454e2c076115614d06903d5dd53c7b9044b11a94f6b3c080b84763",
-  "captured": "2026-11-16T03:41:31.974Z",
-  "png": "9.png",
+  "url": "http://127.0.0.1:5102/loan/70000097",
+  "title": "Core - Loan Confirmation",
+  "dom_hash": "sha256:c16d0ab628e2fa17a1672356d82fe385b6570a850160314fcfc2f0872e5f16b7",
+  "captured": "2026-11-16T17:40:30.580Z",
+  "png": null,
   "elements": [
     {
       "tag": "a",
-      "id": null,
+      "id": "newSearch",
       "name": null,
       "label": null,
-      "css": "#results > tbody:nth-of-type(1) > tr.result:nth-of-type(1) > td:nth-of-type(4) > a.open:nth-of-type(1)",
+      "css": "#newSearch",
       "aria": null,
-      "text": "Open",
+      "text": "Back to lookup",
       "editable": false,
       "type": null,
-      "visible": true
-    },
+      "visible": true,
+      "key": "#newSearch"
+    }
+  ],
+  "frames": [
     {
-      "tag": "a",
-      "id": "backLink",
-      "name": null,
-      "label": null,
-      "css": "#backLink",
-      "aria": null,
-      "text": "New search",
-      "editable": false,
+      "key": "iframe#sumFrame",
+      "url": "http://127.0.0.1:5102/loan/70000097/summary",
+      "title": "Loan summary",
+      "html": "9.frame1.html",
+      "dom_hash": "sha256:3534f177fa7fdaaadeddf0610d357fb2d9116bfb9c2d2dde87052cbec2819731",
+      "cross_origin": false
+    }
+  ],
+  "opaque": [
+    {
+      "key": "#payChart",
+      "tag": "canvas",
       "type": null,
-      "visible": true
+      "rect": {
+        "x": 16.0,
+        "y": 491.875,
+        "width": 380.0,
+        "height": 90.0
+      },
+      "png": null
     }
   ]
 }

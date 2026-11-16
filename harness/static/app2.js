@@ -101,6 +101,38 @@
     });
   }
 
+  // An identity acknowledgement as a web component: its checkbox lives in an open shadow root,
+  // so the page's own HTML does not contain it.
+  if (window.customElements && !customElements.get("ack-box")) {
+    customElements.define("ack-box", class extends HTMLElement {
+      connectedCallback() {
+        if (this.shadowRoot) return;
+        var r = this.attachShadow({ mode: "open" });
+        r.innerHTML = '<label><input type="checkbox" id="ackChk"> I confirmed the customer\'s identity</label>' +
+          '<p id="ackNote" hidden>Identity confirmed.</p>';
+        r.getElementById("ackChk").addEventListener("change", function (e) {
+          r.getElementById("ackNote").hidden = !e.target.checked;
+        });
+      }
+    });
+  }
+
+  // A repayment chart drawn on a canvas: pixels only, no HTML to read.
+  function drawChart() {
+    var c = document.getElementById("payChart");
+    if (!c || !c.getContext) return;
+    var g = c.getContext("2d"), amt = parseFloat(c.dataset.amount) || 0, n = parseInt(c.dataset.term, 10) || 1;
+    var bars = Math.min(n, 24), w = c.width / bars;
+    g.fillStyle = "#2f6b3a";
+    for (var i = 0; i < bars; i++) {
+      var h = Math.max(4, (c.height - 10) * (1 - i / bars));
+      g.fillRect(i * w + 2, c.height - h, w - 4, h);
+    }
+    g.fillStyle = "#111";
+    g.fillText(String(Math.round(amt / n)) + " / month", 6, 12);
+  }
+
   initSearch();
   initLoan();
+  drawChart();
 })();

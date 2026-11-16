@@ -1,32 +1,32 @@
 {
-  "run_id": "run_20261116T034130Z_b60acd",
+  "run_id": "run_20261116T174022Z_821633",
   "session_id": "harness_bundle",
-  "clock_offset_ms": 5.60498046875,
+  "clock_offset_ms": 6.530029296875,
   "activities": [
     {
       "seq": 1,
-      "ts": "2026-11-16T03:41:30.582025Z",
-      "end": "2026-11-16T03:41:30.640855Z",
+      "ts": "2026-11-16T17:40:22.694316Z",
+      "end": "2026-11-16T17:40:22.921331Z",
       "activity": "NavigateTo",
       "display": "Open CRM search",
       "selector": null,
       "screen": 1,
       "action_id": null,
       "requests": [
-        24,
-        25,
-        26
+        1,
+        2,
+        3
       ],
       "har_entries": [
-        23,
-        24,
-        25
+        0,
+        1,
+        2
       ]
     },
     {
       "seq": 2,
-      "ts": "2026-11-16T03:41:30.992593Z",
-      "end": "2026-11-16T03:41:31.362154Z",
+      "ts": "2026-11-16T17:40:23.272776Z",
+      "end": "2026-11-16T17:40:23.585058Z",
       "activity": "TypeInto",
       "display": "Type customer name",
       "selector": {
@@ -36,14 +36,14 @@
         "tag": "INPUT"
       },
       "screen": 1,
-      "action_id": "1-1794800491035",
+      "action_id": "1-1794850823321",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 3,
-      "ts": "2026-11-16T03:41:31.713579Z",
-      "end": "2026-11-16T03:41:31.775050Z",
+      "ts": "2026-11-16T17:40:23.936552Z",
+      "end": "2026-11-16T17:40:23.993549Z",
       "activity": "Click",
       "display": "Click search",
       "selector": {
@@ -53,22 +53,22 @@
         "tag": "BUTTON"
       },
       "screen": 1,
-      "action_id": "2-1794800491734",
+      "action_id": "2-1794850823950",
       "requests": [
-        27,
-        28,
-        29
+        4,
+        5,
+        6
       ],
       "har_entries": [
-        26,
-        27,
-        28
+        3,
+        4,
+        5
       ]
     },
     {
       "seq": 4,
-      "ts": "2026-11-16T03:41:32.126466Z",
-      "end": "2026-11-16T03:41:32.196050Z",
+      "ts": "2026-11-16T17:40:24.344766Z",
+      "end": "2026-11-16T17:40:24.412904Z",
       "activity": "Click",
       "display": "Open customer",
       "selector": {
@@ -78,23 +78,23 @@
         "cls": "open",
         "aaname": "Open"
       },
-      "screen": 9,
-      "action_id": "1-1794800492168",
+      "screen": 2,
+      "action_id": "1-1794850824385",
       "requests": [
-        30,
-        31,
-        32
+        7,
+        8,
+        9
       ],
       "har_entries": [
-        29,
-        30,
-        31
+        6,
+        7,
+        8
       ]
     },
     {
       "seq": 5,
-      "ts": "2026-11-16T03:41:32.547535Z",
-      "end": "2026-11-16T03:41:32.558884Z",
+      "ts": "2026-11-16T17:40:24.763909Z",
+      "end": "2026-11-16T17:40:24.777107Z",
       "activity": "GetText",
       "display": "Read account no",
       "selector": {
@@ -104,37 +104,37 @@
         "cls": "acct",
         "idx": "1"
       },
-      "screen": 10,
+      "screen": 3,
       "action_id": null,
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 6,
-      "ts": "2026-11-16T03:41:32.910482Z",
-      "end": "2026-11-16T03:41:32.931191Z",
+      "ts": "2026-11-16T17:40:25.128575Z",
+      "end": "2026-11-16T17:40:25.157479Z",
       "activity": "NavigateTo",
       "display": "Open Core lookup",
       "selector": null,
       "screen": 4,
       "action_id": null,
       "requests": [
-        33,
-        34,
-        35,
-        36
+        10,
+        11,
+        12,
+        13
       ],
       "har_entries": [
-        32,
-        33,
-        34,
-        35
+        9,
+        10,
+        11,
+        12
       ]
     },
     {
       "seq": 7,
-      "ts": "2026-11-16T03:41:33.282643Z",
-      "end": "2026-11-16T03:41:33.562450Z",
+      "ts": "2026-11-16T17:40:25.508986Z",
+      "end": "2026-11-16T17:40:25.787049Z",
       "activity": "TypeInto",
       "display": "Type account number",
       "selector": {
@@ -144,14 +144,14 @@
         "tag": "INPUT"
       },
       "screen": 4,
-      "action_id": "1-1794800493318",
+      "action_id": "1-1794850825551",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 8,
-      "ts": "2026-11-16T03:41:33.913504Z",
-      "end": "2026-11-16T03:41:33.936460Z",
+      "ts": "2026-11-16T17:40:26.138503Z",
+      "end": "2026-11-16T17:40:26.153562Z",
       "activity": "Click",
       "display": "Click find",
       "selector": {
@@ -161,18 +161,18 @@
         "tag": "BUTTON"
       },
       "screen": 4,
-      "action_id": "2-1794800493934",
+      "action_id": "2-1794850826150",
       "requests": [
-        37
+        14
       ],
       "har_entries": [
-        36
+        13
       ]
     },
     {
       "seq": 9,
-      "ts": "2026-11-16T03:41:34.288443Z",
-      "end": "2026-11-16T03:41:34.383087Z",
+      "ts": "2026-11-16T17:40:26.504692Z",
+      "end": "2026-11-16T17:40:26.599536Z",
       "activity": "WaitUiElementAppear",
       "display": "Wait for details",
       "selector": {
@@ -181,15 +181,15 @@
         "id": "newLoan",
         "tag": "A"
       },
-      "screen": 11,
+      "screen": 5,
       "action_id": null,
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 10,
-      "ts": "2026-11-16T03:41:34.734348Z",
-      "end": "2026-11-16T03:41:34.738848Z",
+      "ts": "2026-11-16T17:40:26.950724Z",
+      "end": "2026-11-16T17:40:26.957264Z",
       "activity": "GetText",
       "display": "Read SSN",
       "selector": {
@@ -198,15 +198,15 @@
         "id": "dSsn",
         "tag": "DD"
       },
-      "screen": 11,
+      "screen": 5,
       "action_id": null,
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 11,
-      "ts": "2026-11-16T03:41:35.089708Z",
-      "end": "2026-11-16T03:41:35.159171Z",
+      "ts": "2026-11-16T17:40:27.308495Z",
+      "end": "2026-11-16T17:40:27.363971Z",
       "activity": "Click",
       "display": "Click new loan",
       "selector": {
@@ -215,25 +215,25 @@
         "id": "newLoan",
         "tag": "A"
       },
-      "screen": 11,
-      "action_id": "3-1794800495117",
+      "screen": 5,
+      "action_id": "3-1794850827335",
       "requests": [
-        38,
-        39,
-        40,
-        41
+        15,
+        16,
+        17,
+        18
       ],
       "har_entries": [
-        37,
-        38,
-        39,
-        40
+        14,
+        15,
+        16,
+        17
       ]
     },
     {
       "seq": 12,
-      "ts": "2026-11-16T03:41:35.510915Z",
-      "end": "2026-11-16T03:41:35.682402Z",
+      "ts": "2026-11-16T17:40:27.715420Z",
+      "end": "2026-11-16T17:40:27.856760Z",
       "activity": "TypeInto",
       "display": "Type loan amount",
       "selector": {
@@ -242,15 +242,15 @@
         "id": "loanAmt",
         "tag": "INPUT"
       },
-      "screen": 12,
-      "action_id": "1-1794800495551",
+      "screen": 6,
+      "action_id": "1-1794850827752",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 13,
-      "ts": "2026-11-16T03:41:36.033659Z",
-      "end": "2026-11-16T03:41:36.114321Z",
+      "ts": "2026-11-16T17:40:28.207870Z",
+      "end": "2026-11-16T17:40:28.279000Z",
       "activity": "TypeInto",
       "display": "Type term",
       "selector": {
@@ -259,15 +259,15 @@
         "id": "term",
         "tag": "INPUT"
       },
-      "screen": 13,
-      "action_id": "2-1794800496051",
+      "screen": 6,
+      "action_id": "2-1794850828217",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 14,
-      "ts": "2026-11-16T03:41:36.465395Z",
-      "end": "2026-11-16T03:41:36.472740Z",
+      "ts": "2026-11-16T17:40:28.630470Z",
+      "end": "2026-11-16T17:40:28.639035Z",
       "activity": "SelectItem",
       "display": "Select purpose",
       "selector": {
@@ -276,15 +276,15 @@
         "id": "purpose",
         "tag": "SELECT"
       },
-      "screen": 13,
-      "action_id": "3-1794800496471",
+      "screen": 6,
+      "action_id": "3-1794850828637",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 15,
-      "ts": "2026-11-16T03:41:36.824450Z",
-      "end": "2026-11-16T03:41:36.831867Z",
+      "ts": "2026-11-16T17:40:28.990405Z",
+      "end": "2026-11-16T17:40:28.997166Z",
       "activity": "SelectItem",
       "display": "Select sub-purpose",
       "selector": {
@@ -293,32 +293,15 @@
         "id": "subPurpose",
         "tag": "SELECT"
       },
-      "screen": 14,
-      "action_id": "4-1794800496830",
+      "screen": 7,
+      "action_id": "4-1794850828996",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 16,
-      "ts": "2026-11-16T03:41:37.186431Z",
-      "end": "2026-11-16T03:41:37.367655Z",
-      "activity": "TypeInto",
-      "display": "Type co-signer",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "cosigner",
-        "tag": "INPUT"
-      },
-      "screen": 14,
-      "action_id": "5-1794800497199",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 17,
-      "ts": "2026-11-16T03:41:37.718901Z",
-      "end": "2026-11-16T03:41:37.935808Z",
+      "ts": "2026-11-16T17:40:29.352683Z",
+      "end": "2026-11-16T17:40:29.585530Z",
       "activity": "TypeInto",
       "display": "Type SSN",
       "selector": {
@@ -327,15 +310,32 @@
         "id": "ssn",
         "tag": "INPUT"
       },
-      "screen": 14,
-      "action_id": "6-1794800497733",
+      "screen": 7,
+      "action_id": "5-1794850829385",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 17,
+      "ts": "2026-11-16T17:40:29.936713Z",
+      "end": "2026-11-16T17:40:29.952996Z",
+      "activity": "Click",
+      "display": "Confirm identity",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "ackChk",
+        "tag": "INPUT"
+      },
+      "screen": 7,
+      "action_id": "6-1794850829951",
       "requests": [],
       "har_entries": []
     },
     {
       "seq": 18,
-      "ts": "2026-11-16T03:41:38.288466Z",
-      "end": "2026-11-16T03:41:38.389169Z",
+      "ts": "2026-11-16T17:40:30.304034Z",
+      "end": "2026-11-16T17:40:30.384633Z",
       "activity": "Click",
       "display": "Click submit",
       "selector": {
@@ -344,27 +344,31 @@
         "id": "submit",
         "tag": "BUTTON"
       },
-      "screen": 14,
-      "action_id": "7-1794800498319",
+      "screen": 8,
+      "action_id": "7-1794850830317",
       "requests": [
-        42,
-        43,
-        44,
-        45,
-        46
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
       ],
       "har_entries": [
-        41,
-        42,
-        43,
-        44,
-        45
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
       ]
     },
     {
       "seq": 19,
-      "ts": "2026-11-16T03:41:38.751414Z",
-      "end": "2026-11-16T03:41:38.756448Z",
+      "ts": "2026-11-16T17:40:30.745162Z",
+      "end": "2026-11-16T17:40:30.748939Z",
       "activity": "GetText",
       "display": "Read loan number",
       "selector": {
@@ -373,17 +377,34 @@
         "id": "loanNo",
         "tag": "SPAN"
       },
-      "screen": 15,
+      "screen": 9,
+      "action_id": null,
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 20,
+      "ts": "2026-11-16T17:40:31.100376Z",
+      "end": "2026-11-16T17:40:31.113271Z",
+      "activity": "GetText",
+      "display": "Read summary amount",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Loan Confirmation",
+        "id": "sumAmt",
+        "tag": "SPAN"
+      },
+      "screen": 9,
       "action_id": null,
       "requests": [
-        47,
-        48,
-        49
+        26,
+        27,
+        28
       ],
       "har_entries": [
-        46,
-        47,
-        48
+        25,
+        26,
+        27
       ]
     }
   ]

@@ -1,106 +1,51 @@
 {
   "n": 12,
-  "url": "http://127.0.0.1:5102/loan/new?acct=0079963328",
-  "title": "Core - New Loan",
-  "dom_hash": "sha256:d5eb9e9c5b1495b1e43fb9ddb8c206cfaa131f326be7dbdb61675ee1152ed497",
-  "captured": "2026-11-16T03:41:35.355Z",
+  "url": "http://127.0.0.1:5102/search",
+  "title": "Core - Search",
+  "dom_hash": "sha256:2da0cc186674cddda89b946f40aee7061d95e37cd06e72e85ae4846c82965071",
+  "captured": "2026-11-16T17:40:35.409Z",
   "png": "12.png",
   "elements": [
     {
       "tag": "input",
-      "id": "acctNo",
+      "id": "acct",
       "name": "acct",
-      "label": null,
-      "css": "#acctNo",
-      "aria": null,
-      "text": null,
-      "editable": false,
-      "type": "hidden",
-      "visible": false
-    },
-    {
-      "tag": "input",
-      "id": "loanAmt",
-      "name": "loanAmt",
-      "label": "Loan amount",
-      "css": "#loanAmt",
+      "label": "Account number",
+      "css": "#acct",
       "aria": null,
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true
-    },
-    {
-      "tag": "input",
-      "id": "term",
-      "name": "term",
-      "label": "Term (months)",
-      "css": "#term",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true
-    },
-    {
-      "tag": "select",
-      "id": "purpose",
-      "name": "purpose",
-      "label": "Purpose",
-      "css": "#purpose",
-      "aria": null,
-      "text": "-- choose --\nAuto\nHome improvement\nPersonal",
-      "editable": true,
-      "type": null,
-      "visible": true
-    },
-    {
-      "tag": "select",
-      "id": "subPurpose",
-      "name": "subPurpose",
-      "label": "Sub-purpose",
-      "css": "#subPurpose",
-      "aria": null,
-      "text": "-- choose --",
-      "editable": true,
-      "type": null,
-      "visible": true
-    },
-    {
-      "tag": "input",
-      "id": "cosigner",
-      "name": "cosigner",
-      "label": "Co-signer name",
-      "css": "#cosigner",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": false
-    },
-    {
-      "tag": "input",
-      "id": "ssn",
-      "name": "ssn",
-      "label": "Confirm SSN",
-      "css": "#ssn",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true
+      "visible": true,
+      "key": "#acct"
     },
     {
       "tag": "button",
-      "id": "submit",
+      "id": "searchBtn",
       "name": null,
       "label": null,
-      "css": "#submit",
+      "css": "#searchBtn",
       "aria": null,
-      "text": "Submit",
+      "text": "Find",
       "editable": false,
-      "type": "submit",
-      "visible": true
+      "type": "button",
+      "visible": true,
+      "key": "#searchBtn"
+    },
+    {
+      "tag": "a",
+      "id": "newLoan",
+      "name": null,
+      "label": null,
+      "css": "#newLoan",
+      "aria": null,
+      "text": "New loan",
+      "editable": false,
+      "type": null,
+      "visible": true,
+      "key": "#newLoan"
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

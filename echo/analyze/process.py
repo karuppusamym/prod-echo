@@ -290,7 +290,7 @@ def _field_for_target(
             if s.url_pattern and path_pattern(s.url_pattern) != pp:
                 continue
             for f in s.fields:
-                sel = f.selector
+                sel = f.selector.split(" >> ")[-1].split(" >>> ")[-1]  # the element itself
                 if sel.startswith("#") and a.target.id == sel[1:]:
                     return app, s, f
                 if "." in sel and not sel.startswith("#"):

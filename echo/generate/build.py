@@ -462,6 +462,11 @@ def build_app(
             leak_report[f"{sdef.name}.{b['id']}"] = leaks
         root = detect_root(inp, base_entry["url"], pattern)
         ctx = _ctx(inp.src, inp, rels, root)
+        frame_cfgs = _frames(
+            inp, app, appdef, sdef.name, base_entry["n"], page, ctx, rels, pks, stage
+        )
+        for o in T.mark_opaque(page):
+            inp.report.setdefault("opaque", []).append({"app": app, "screen": sdef.name, **o})
         info = T.bind_tree(page, ctx)
         _unbound(inp, app, sdef.name, info)
         loops = T.detect_loops(page, pks)
@@ -495,6 +500,11 @@ def build_app(
                 },
             }
         )
+        for fc in frame_cfgs:
+            leak_report[fc.pop("_leak_name")] = fc.pop("_leaks")
+            hashes[fc["name"]] = fc.pop("_hash")
+            if all(s["route"] != fc["route"] for s in cfg_screens):
+                cfg_screens.append(fc)
     leaks = {k: v for k, v in leak_report.items() if v}
     inp.report[f"{app}.leakage"] = leak_report
     if leaks and not allow_leaks:
@@ -553,6 +563,95 @@ def build_app(
     stage.rename(dist)
     (Path(out_root) / app / "CURRENT").write_text(version, encoding="utf-8")
     return dist
+
+
+def _frames(
+    inp: Inputs,
+    app: str,
+    appdef,  # noqa: ANN001
+    screen: str,
+    n: int,
+    page: H.Node,
+    parent_ctx: dict,
+    rels: list[Relation],
+    pks: dict,
+    stage: Path,
+) -> list[dict]:
+    """The screen's iframes. A same-origin frame becomes a page of its own, served on its captured
+    path and bound like a screen (its own record from its URL, else the parent's). A cross-origin
+    or nested frame cannot be rebuilt from this app's evidence: its owner is blanked and marked
+    opaque, and the report lists it."""
+    sj = inp.bundle / "screens" / f"{n}.json"
+    frames = read_json(sj).get("frames") or [] if sj.exists() else []
+    origin = appdef.match.get("origin")
+    out = []
+    for i, f in enumerate(frames, start=1):
+        owner = H.select(page, f["key"].split(screens.FRAME_SEP)[0])
+        nested = screens.FRAME_SEP in f["key"]
+        other = f.get("cross_origin") or (origin and not f["url"].startswith(origin))
+        if nested or other or owner is None:
+            if owner is not None and not nested:
+                owner.attrs = [a for a in owner.attrs if a[0] not in ("src", "srcdoc")]
+                owner.attrs += [["src", "about:blank"], ["data-echo-opaque", "cross_origin_frame"]]
+            inp.report.setdefault("opaque", []).append(
+                {
+                    "app": app,
+                    "screen": screen,
+                    "element": f["key"],
+                    "kind": "frame",
+                    "reason": "nested"
+                    if nested
+                    else "cross_origin"
+                    if other
+                    else "owner_not_found",
+                }
+            )
+            continue
+        fpage = T.normalize_dom(H.parse((inp.bundle / "screens" / f["html"]).read_text("utf-8")))
+        for o in T.mark_opaque(fpage):
+            inp.report.setdefault("opaque", []).append(
+                {"app": app, "screen": screen, **o, "element": f"{f['key']} >> {o['element']}"}
+            )
+        fpattern = path_pattern(f["url"])
+        froot = detect_root(inp, f["url"], fpattern)
+        fctx = _ctx(inp.src, inp, rels, froot) if froot.get("table") else parent_ctx
+        if not froot.get("table"):
+            inp.report.setdefault("gaps", []).append(
+                f"{app}.{screen}: frame {f['key']} has no record in its URL; its values render empty"
+            )
+        finfo = T.bind_tree(fpage, fctx)
+        _unbound(inp, app, f"{screen}.frame{i}", finfo)
+        floops = T.detect_loops(fpage, pks)
+        ftpl = H.serialize(fpage)
+        name = f"{screen}__frame{i}"
+        (stage / "screens" / f"{name}.html").write_text(ftpl, encoding="utf-8")
+        write_json(stage / "slots" / f"{name}.json", {**finfo, "loops": floops, "blocks": []})
+        rcfg = {k: v for k, v in froot.items() if k != "rows"}
+        other_rows = (
+            _other_root_rows(inp, rcfg, froot.get("rows") or []) if froot.get("table") else []
+        )
+        octx = _ctx(inp.echo, inp, rels, rcfg, other_rows) if other_rows else {}
+        route, params = _route(fpattern)
+        out.append(
+            {
+                "name": name,
+                "frame_of": screen,
+                "frame_key": f["key"],
+                "title": f.get("title") or "",
+                "path_pattern": fpattern,
+                "route": route,
+                "params": params,
+                "root": rcfg if froot.get("table") else {"kind": "none"},
+                "blocks": [],
+                "forms": [],
+                "template": f"screens/{name}.html",
+                "captured_from": {"screen": n, "frame": f["key"], "path": fpattern},
+                "_leak_name": name,
+                "_leaks": T.leakage(T.render(ftpl, octx), fctx, octx) if octx else [],
+                "_hash": hashlib.sha256(ftpl.encode()).hexdigest(),
+            }
+        )
+    return out
 
 
 def _unbound(inp: Inputs, app: str, where: str, info: dict) -> None:

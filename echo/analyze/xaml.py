@@ -26,7 +26,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from echo.analyze.models import AppDef, Field_, Flow, ProcessMap, ScreenDef, SqlUse
-from echo.analyze.robotlog import parse_selector
+from echo.analyze.robotlog import frame_path, parse_selector
 from echo.util import slug
 
 log = logging.getLogger(__name__)
@@ -259,7 +259,8 @@ def to_process_map(proj: XProject, xaml_version: str | None = None) -> ProcessMa
             screen.fields.append(
                 Field_(
                     name=fname,
-                    selector=css_of(a.selector),
+                    # an element inside an iframe: `iframe#sumFrame >> #sumAmt` (capture notation)
+                    selector=" >> ".join([*frame_path(a.selector_raw), css_of(a.selector)]),
                     io=IO[a.type],
                     private=a.private,
                     display=a.display,

@@ -83,15 +83,51 @@ SEL_TAG_RE = re.compile(r"<(\w+)\s+([^<>]*?)\s*/?>")
 SEL_ATTR_RE = re.compile(r"(\w+)\s*=\s*'([^']*)'")
 
 
-def parse_selector(s: str | None) -> dict[str, str] | None:
-    """UiPath selector string -> flat attribute dict (`<wnd app='x' /><webctrl id='y' />`)."""
+WINDOW_TAGS = {"wnd", "html"}
+FRAME_TAGS = {"IFRAME", "FRAME"}
+
+
+def selector_segments(s: str | None) -> list[tuple[str, dict[str, str]]]:
+    """UiPath selector string -> [(tag, attributes)] in order."""
     if not s:
+        return []
+    return [(tag, dict(SEL_ATTR_RE.findall(attrs))) for tag, attrs in SEL_TAG_RE.findall(s)]
+
+
+def parse_selector(s: str | None) -> dict[str, str] | None:
+    """UiPath selector string -> flat attribute dict (`<wnd app='x' /><webctrl id='y' />`): the
+    window attributes (app, title) plus the target element's (the last element segment), so an
+    iframe on the way to the element does not lend it its id."""
+    segs = selector_segments(s)
+    if not segs:
         return None
     out: dict[str, str] = {}
-    for _tag, attrs in SEL_TAG_RE.findall(s):
-        for k, v in SEL_ATTR_RE.findall(attrs):
-            out[k] = v
+    for tag, attrs in segs:
+        if tag in WINDOW_TAGS:
+            out.update(attrs)
+    elems = [a for t, a in segs if t not in WINDOW_TAGS]
+    if elems:
+        out.update(elems[-1])
     return out or None
+
+
+def frame_path(s: str | None) -> list[str]:
+    """The iframes an element sits in, as frame keys (`iframe#sumFrame`, `iframe[name='x']`), from
+    the `<webctrl tag='IFRAME' .../>` segments before the target element."""
+    elems = [a for t, a in selector_segments(s) if t not in WINDOW_TAGS]
+    out = []
+    for a in elems[:-1]:
+        if (a.get("tag") or "").upper() in FRAME_TAGS:
+            tag = a["tag"].lower()
+            if a.get("id"):
+                out.append(f"{tag}#{a['id']}")
+            elif a.get("name"):
+                out.append(f"{tag}[name='{a['name']}']")
+            elif a.get("src"):
+                out.append(f"{tag}[src='{a['src']}']")
+            else:
+                out.append(tag)
+    return out
 
 
 def _csv_rows(text: str, path: Path) -> list[dict]:

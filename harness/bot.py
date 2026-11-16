@@ -262,13 +262,16 @@ class Scenario:
 
         self.act("Click", display, selector, do)
 
-    def get_text(self, display: str, selector: str, css: str, var: str) -> str:
+    def get_text(
+        self, display: str, selector: str, css: str, var: str, frame: str | None = None
+    ) -> str:
+        root = self.page.frame_locator(frame) if frame else self.page
         return str(
             self.act(
                 "GetText",
                 display,
                 selector,
-                lambda: self.page.locator(css).first.inner_text().strip(),
+                lambda: root.locator(css).first.inner_text().strip(),
                 out_var=var,
             )
         )
@@ -336,6 +339,8 @@ class Scenario:
             )
         digits = "".join(ch for ch in ssn if ch.isdigit())
         self.type_into("Type SSN", "Core - New Loan", "#ssn", "ssn", digits, private=True)
+        # inside the <ack-box> web component's open shadow root (Playwright's CSS pierces it)
+        self.click("Confirm identity", sel("Core - New Loan", id="ackChk", tag="INPUT"), "#ackChk")
         self.click(
             "Click submit",
             sel("Core - New Loan", id="submit", tag="BUTTON"),
@@ -350,6 +355,15 @@ class Scenario:
                 sel("Core - Loan Confirmation", id="loanNo", tag="SPAN"),
                 "#loanNo",
                 "loanNo",
+            )
+            # inside the summary iframe
+            self.get_text(
+                "Read summary amount",
+                "<html app='chrome.exe' title='Core - Loan Confirmation' />"
+                "<webctrl tag='IFRAME' id='sumFrame' /><webctrl id='sumAmt' tag='SPAN' />",
+                "#sumAmt",
+                "sumAmt",
+                frame="#sumFrame",
             )
         return {"acct": acct, "ssn": ssn, "loan_no": loan_no}
 

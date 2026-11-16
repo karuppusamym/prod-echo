@@ -13,6 +13,7 @@
     <Sequence.Variables>
       <Variable x:TypeArguments="x:String" Name="ssn" />
       <Variable x:TypeArguments="x:String" Name="loanAmt" />
+      <Variable x:TypeArguments="x:String" Name="sumAmt" />
     </Sequence.Variables>
     <ui:NavigateTo DisplayName="Open Core lookup" Url="http://127.0.0.1:5102/search" />
     <ui:TypeInto DisplayName="Type account number" Text="[in_AcctNo]">
@@ -74,6 +75,11 @@
         <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='ssn' tag='INPUT' /&gt;" />
       </ui:TypeInto.Target>
     </ui:TypeInto>
+    <ui:Click DisplayName="Confirm identity">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='ackChk' tag='INPUT' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
     <ui:Click DisplayName="Click submit">
       <ui:Click.Target>
         <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='submit' tag='BUTTON' /&gt;" />
@@ -82,6 +88,11 @@
     <ui:GetText DisplayName="Read loan number" Value="[out_LoanNo]">
       <ui:GetText.Target>
         <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Loan Confirmation' /&gt;&lt;webctrl id='loanNo' tag='SPAN' /&gt;" />
+      </ui:GetText.Target>
+    </ui:GetText>
+    <ui:GetText DisplayName="Read summary amount" Value="[sumAmt]">
+      <ui:GetText.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Loan Confirmation' /&gt;&lt;webctrl tag='IFRAME' id='sumFrame' /&gt;&lt;webctrl id='sumAmt' tag='SPAN' /&gt;" />
       </ui:GetText.Target>
     </ui:GetText>
   </Sequence>

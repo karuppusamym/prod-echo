@@ -5,6 +5,10 @@
 //  - Delays are replayed from the catalog.
 //  - Any interaction with an element, or under a condition, that has no evidence in the catalog
 //    is logged to unobserved.jsonl; the replica does nothing else for it.
+//  - Keys follow the capture notation: `iframe#f >> #x` is #x inside the (same-origin) iframe,
+//    `#host >>> #x` is #x inside #host's open shadow root. Events are listened to inside frames
+//    and on shadow roots too; a click on content the replica cannot reproduce (canvas, embedded
+//    objects, cross-origin frames: `data-echo-opaque`) is logged as unobserved.
 (function () {
   "use strict";
   var node = document.getElementById("echo-behaviors");
@@ -27,11 +31,34 @@
     }
     return parts.join(" > ");
   }
-  function keyOf(el) {
+  function hostOf(el) {
+    var r = el.getRootNode ? el.getRootNode() : null;
+    return r && r.host ? r.host : null;
+  }
+  function localKey(el) {
     if (el.id) return "#" + el.id;
-    if (el.name && document.getElementsByName(el.name).length === 1) return "[name=" + el.name + "]";
+    var root = el.getRootNode ? el.getRootNode() : document;
+    if (el.name && root.querySelectorAll('[name="' + CSS.escape(el.name) + '"]').length === 1) {
+      return "[name=" + el.name + "]";
+    }
     return cssPath(el);
   }
+  function inDocKey(el) {
+    var h = hostOf(el);
+    return h ? inDocKey(h) + " >>> " + localKey(el) : localKey(el);
+  }
+  // the recorder names a frame by its owner element: tag#id, tag[name='..'], tag[src='..']
+  function ownerKey(fe) {
+    var tag = fe.tagName.toLowerCase(), id = fe.getAttribute("id"), nm = fe.getAttribute("name"),
+        src = fe.getAttribute("src");
+    return id ? tag + "#" + id : nm ? tag + "[name='" + nm + "']" : src ? tag + "[src='" + src + "']" : tag;
+  }
+  function framePrefix(doc) {
+    var w = doc && doc.defaultView;
+    if (!w || w === window || !w.frameElement) return "";
+    return framePrefix(w.frameElement.ownerDocument) + ownerKey(w.frameElement) + " >> ";
+  }
+  function keyOf(el) { return framePrefix(el.ownerDocument) + inDocKey(el); }
   var INTERACTIVE = "input,select,textarea,button,a[href],[contenteditable=''],[contenteditable=true],[role=button]";
 
   // hidden inputs carry server-rendered values; they count as committed
@@ -45,7 +72,40 @@
     } catch (e) { /* ignore */ }
   }
 
-  function q(key) { try { return document.querySelector(key); } catch (e) { return null; } }
+  function q(key) {
+    try {
+      var parts = String(key).split(" >> "), doc = document;
+      for (var i = 0; i < parts.length - 1; i++) {
+        var fr = doc.querySelector(parts[i]);
+        if (!fr || !fr.contentDocument) return null;
+        doc = fr.contentDocument;
+      }
+      var sh = parts[parts.length - 1].split(" >>> "), root = doc;
+      for (var j = 0; j < sh.length - 1; j++) {
+        var host = root.querySelector(sh[j]);
+        if (!host || !host.shadowRoot) return null;
+        root = host.shadowRoot;
+      }
+      return root.querySelector(sh[sh.length - 1]);
+    } catch (e) { return null; }
+  }
+  // the element acted on: first interactive element on the composed path (shadow-aware)
+  function pick(e) {
+    var path = e.composedPath ? e.composedPath() : [e.target];
+    for (var i = 0; i < path.length; i++) {
+      var n = path[i];
+      if (n && n.nodeType === 1 && n.matches(INTERACTIVE)) return n;
+    }
+    return null;
+  }
+  function opaqueOf(e) {
+    var path = e.composedPath ? e.composedPath() : [e.target];
+    for (var i = 0; i < path.length; i++) {
+      var n = path[i];
+      if (n && n.nodeType === 1 && n.hasAttribute && n.hasAttribute("data-echo-opaque")) return n;
+    }
+    return null;
+  }
 
   function num(v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, "")); return isNaN(n) ? null : n; }
 
@@ -110,6 +170,8 @@
   function handle(el, ev) {
     var key = keyOf(el);
     var value = ("value" in el && el.tagName !== "BUTTON") ? el.value : null;
+    // a checkbox or radio is captured by its checked state, as "true"/"false"
+    if (el.tagName === "INPUT" && /^(checkbox|radio)$/.test(el.type)) value = el.checked ? "true" : "false";
     var seen = B.observed.some(function (o) { return o.field === key && o.event === ev; });
     if (!seen) { unobserved(el, ev, value, "element_or_event_not_observed"); return; }
     var rules = B.rules.filter(function (r) { return r.trigger.field === key && r.trigger.event === ev; });
@@ -158,25 +220,62 @@
     });
   }
 
-  document.addEventListener("input", function (e) {
-    var el = e.target.closest ? e.target.closest(INTERACTIVE) : null;
-    if (!el || el.tagName === "SELECT") return;  // selects report through change
+  function isToggle(el) { return el.tagName === "INPUT" && /^(checkbox|radio)$/.test(el.type || ""); }
+  function onInput(e) {
+    var el = pick(e);
+    // selects and checkboxes/radios report through change (the capture merges their events)
+    if (!el || el.tagName === "SELECT" || isToggle(el)) return;
     committed.set(el, el.value);
     handle(el, "input");
-  });
-  document.addEventListener("change", function (e) {
-    var el = e.target.closest ? e.target.closest(INTERACTIVE) : null;
+  }
+  function onChange(e) {
+    var el = pick(e);
     if (!el) return;
     if (el.tagName !== "SELECT" && !/^(checkbox|radio|file|range|color|date)$/.test(el.type || "")) return;
     committed.set(el, el.value);
     handle(el, "change");
-  });
-  document.addEventListener("click", function (e) {
-    var el = e.target.closest ? e.target.closest(INTERACTIVE) : null;
-    if (!el) return;
-    if (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(submit|button|checkbox|radio)$/.test(el.type || "")) return;
+  }
+  function onClick(e) {
+    var op = opaqueOf(e);
+    if (op) { unobserved(op, "click", null, "opaque_region:" + op.getAttribute("data-echo-opaque")); return; }
+    var el = pick(e);
+    if (!el || isToggle(el)) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !/^(submit|button)$/.test(el.type || "")) return;
     handle(el, "click");
-  });
+  }
+  function listen(doc) {
+    doc.addEventListener("input", onInput, true);
+    doc.addEventListener("change", onChange, true);
+    doc.addEventListener("click", onClick, true);
+  }
+  listen(document);
+  // Same-origin frames (served by this replica) and open shadow roots: events from a frame never
+  // reach this document, and `change` does not leave a shadow root.
+  var wired = new WeakSet();
+  function wire(doc) {
+    var all = doc.querySelectorAll("*");
+    for (var i = 0; i < all.length; i++) {
+      var n = all[i];
+      if (n.shadowRoot && !wired.has(n.shadowRoot)) {
+        wired.add(n.shadowRoot);
+        n.shadowRoot.addEventListener("change", onChange, true);
+        wire(n.shadowRoot);
+      }
+      if (/^(IFRAME|FRAME)$/.test(n.tagName)) {
+        var d = null;
+        try { d = n.contentDocument; } catch (e) { d = null; }
+        if (d && d.readyState !== "uninitialized" && !wired.has(d)) {
+          wired.add(d);
+          listen(d);
+          d.querySelectorAll("input[type=hidden]").forEach(function (h) { committed.set(h, h.value); });
+          wire(d);
+        } else if (d) wire(d);
+      }
+    }
+  }
+  wire(document);
+  document.addEventListener("load", function () { wire(document); }, true);
+  setInterval(function () { wire(document); }, 300);
 
   function values(form) {
     var out = {};

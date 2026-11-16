@@ -3,7 +3,7 @@
   "url": "http://127.0.0.1:5101/results?name=JOHN+SMITH",
   "title": "CRM - Results",
   "dom_hash": "sha256:88b0993aeb9e4c01e6f141f800f17a3053c07d3f508fcd2e880cf5976a323871",
-  "captured": "2026-11-16T03:41:23.863Z",
+  "captured": "2026-11-16T17:40:24.193Z",
   "png": "2.png",
   "elements": [
     {
@@ -16,7 +16,8 @@
       "text": "Open",
       "editable": false,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#results > tbody:nth-of-type(1) > tr.result:nth-of-type(1) > td:nth-of-type(4) > a.open:nth-of-type(1)"
     },
     {
       "tag": "a",
@@ -28,7 +29,8 @@
       "text": "Open",
       "editable": false,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#results > tbody:nth-of-type(1) > tr.result:nth-of-type(2) > td:nth-of-type(4) > a.open:nth-of-type(1)"
     },
     {
       "tag": "a",
@@ -40,7 +42,10 @@
       "text": "New search",
       "editable": false,
       "type": null,
-      "visible": true
+      "visible": true,
+      "key": "#backLink"
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

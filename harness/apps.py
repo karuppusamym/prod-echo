@@ -185,6 +185,7 @@ LOAN2 = """{% extends layout %}{% block body %}
 <div class="row" id="cosignerRow" hidden><label for="cosigner">Co-signer name</label><input id="cosigner" name="cosigner" type="text"></div>
 {% if variant == "changed" %}<div class="row"><label for="rate">Rate type</label><input id="rate" name="rate" type="text"></div>{% endif %}
 <div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
+<div class="row"><ack-box id="ack"></ack-box></div>
 <p id="formError" class="err" hidden></p>
 <button id="submit" type="submit">Submit</button>
 </form>{% endblock %}"""
@@ -195,7 +196,18 @@ CONFIRM2 = """{% extends layout %}{% block body %}
 <dl class="card"><dt>Account</dt><dd id="cAcct">{{ l.ACCT_NO }}</dd>
 <dt>Amount</dt><dd id="cAmt">{{ l.LOAN_AMT }}</dd><dt>Term</dt><dd id="cTerm">{{ l.TERM_MONTHS }}</dd>
 <dt>Purpose</dt><dd id="cPurpose">{{ l.PURPOSE_CD }}</dd><dt>Status</dt><dd id="cStatus">{{ l.STATUS_CD }}</dd></dl>
+<iframe id="sumFrame" title="Loan summary" src="/loan/{{ l.LOAN_NO }}/summary" width="380" height="96"></iframe>
+<canvas id="payChart" width="380" height="90" data-amount="{{ l.LOAN_AMT }}" data-term="{{ l.TERM_MONTHS }}"></canvas>
 <a id="newSearch" href="/search">Back to lookup</a>{% endblock %}"""
+
+SUMMARY2 = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Loan summary</title>
+<link rel="stylesheet" href="/static/app2.css"></head>
+<body class="frame"><table id="summary"><tbody>
+<tr><th>Loan</th><td><span id="sumNo">{{ l.LOAN_NO }}</span></td></tr>
+<tr><th>Amount</th><td><span id="sumAmt">{{ l.LOAN_AMT }}</span></td></tr>
+<tr><th>Term</th><td><span id="sumTerm">{{ l.TERM_MONTHS }}</span> months</td></tr>
+</tbody></table></body></html>"""
 
 ERROR2 = """{% extends layout %}{% block body %}<h1>Rejected</h1><p id="error">{{ msg }}</p>
 <a id="newSearch" href="/search">Back to lookup</a>{% endblock %}"""
@@ -325,5 +337,17 @@ def create_app2(db_path: Path, variant: str | None = None) -> Flask:
         if row is None:
             abort(404)
         return page(CONFIRM2, title="Core - Loan Confirmation", l=row)
+
+    @app.get("/loan/<int:loan_no>/summary")
+    def loan_summary(loan_no: int):  # noqa: ANN202
+        """Shown in an iframe on the confirmation page; the bot reads the amount from it."""
+        row = (
+            _db(app.config["DB_PATH"])
+            .execute("SELECT * FROM LOAN WHERE LOAN_NO = ?", (loan_no,))
+            .fetchone()
+        )
+        if row is None:
+            abort(404)
+        return render_template_string(SUMMARY2, l=row)
 
     return app

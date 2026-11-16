@@ -30,6 +30,25 @@ SLOT_RE = re.compile(r"\{(#count:)?([A-Z0-9_]+)\.?([A-Z0-9_]*)(?:@(\d+))?\}")
 DATA_LIKE = re.compile(r"\d{3,}|^[A-Z][A-Z .'-]{3,}$")
 
 
+OPAQUE_TAGS = ("canvas", "embed", "object")
+
+
+def mark_opaque(root: H.Node) -> list[dict]:
+    """Content the replica cannot reproduce: a canvas stays (empty: the real script that drew it
+    is never served), an embedded object loses its source (it may be a customer's document).
+    Each is marked `data-echo-opaque` so the behavior runtime logs clicks on it as unobserved."""
+    out = []
+    for e in root.elements():
+        if e.tag not in OPAQUE_TAGS:
+            continue
+        e.attrs = [a for a in e.attrs if a[0] not in ("src", "data", "data-echo-opaque")]
+        e.attrs.append(["data-echo-opaque", e.tag])
+        if e.tag == "object":
+            e.children = []  # fallback content and <param>s may carry the document's source
+        out.append({"element": e.get("id") or e.tag, "kind": e.tag})
+    return out
+
+
 def normalize_dom(root: H.Node) -> H.Node:
     def walk(n: H.Node) -> None:
         keep = []
@@ -166,6 +185,11 @@ def _pick(
     return ranked[0]
 
 
+def _token_re(form: str) -> re.Pattern:
+    # a value counts only as a whole token: "MMA" must not bind inside "summary"
+    return re.compile(r"(?<![A-Za-z0-9])" + re.escape(form) + r"(?![A-Za-z0-9])")
+
+
 def _attr_tpl(v: str, idx: dict) -> str:
     # Longest values first so 0048812231 wins over 4471-like fragments.
     best = None
@@ -173,11 +197,13 @@ def _attr_tpl(v: str, idx: dict) -> str:
         if len(s) < 3:
             continue
         for form in {s, s.lower(), s.replace(" ", "+"), s.replace(" ", "%20")}:
-            if form and form in v and (best is None or len(form) > len(best[0])):
+            if not form or form not in v or (best is not None and len(form) <= len(best[0])):
+                continue
+            if _token_re(form).search(v):
                 best = (form, hits[0])
     if best is None:
         return v
-    return v.replace(best[0], _slot(best[1]))
+    return _token_re(best[0]).sub(lambda _m: _slot(best[1]), v)
 
 
 def _path(el: H.Node) -> str:
