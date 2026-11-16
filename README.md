@@ -122,6 +122,14 @@ accepted.
 - `pytest -m replica` — the synthetic Postgres replica (`python scripts/sample_replica.py up`, then
   export the `ECHO_DB_LPO` it prints); skipped otherwise.
 
+## What the capture handles
+
+Every frame of a page (cross-origin ones included), open and closed shadow roots, and content with
+no HTML (canvas, embedded PDF/plugin objects, recorded as boxes with a cropped screenshot) are
+captured and carried through to the generated apps; see docs/05 and docs/07. Nothing is read from
+pixels: there is no OCR in this repo. Citrix, remote-desktop and thick-client windows have no DOM
+and are out of scope.
+
 ## Rehearse the real path on synthetic samples
 
 `samples/loan_payoff` is a second, invented process written in the real formats: a modern-activity

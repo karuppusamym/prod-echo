@@ -26,7 +26,7 @@ App DB read replicas ─────────► own extractor (closure)     
 | Evidence bundle | `echo/capture/bundle.py`, `correlate.py` | I-02, I-06 | Folder per robot session; manifest lists sources and runs; correlation aligns the sources |
 | NetLog parser | `echo/capture/netlog.py` | I-03 | NetLog JSON → `requests.jsonl` |
 | CDP recorder | `echo/capture/cdp.py` | I-04 | Attach to running browser → HAR 1.2 with bodies |
-| Screen capture | `echo/capture/screens.py` | I-05 | DOM + PNG + selector list per screen |
+| Screen capture | `echo/capture/screens.py`, `page_script.js` | I-05 | DOM + PNG + selector list per screen; frames composed in, shadow roots (open and closed) serialized, canvas/embeds as opaque crops |
 | XAML parser | `echo/analyze/xaml.py` | I-07 | UiPath project → activities, selectors, SQL |
 | Robot log parser | `echo/analyze/robotlog.py` | I-08 | Verbose log → per-run trace with values |
 | Process analyzer | `echo/analyze/process.py` | I-09 | Join everything → `process-map.json`, `bot-trace.json` |

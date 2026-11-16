@@ -82,6 +82,7 @@ uv sync                       install
 uv run echo --help            CLI
 uv run pytest                 tests (fast; no network, no browsers unless marked)
 uv run pytest -m browser      tests that drive the harness in a real Chromium
+uv run pytest -m replica      the synthetic Postgres replica (python scripts/sample_replica.py up)
 uv run echo harness up        start both fake apps on localhost
 uv run echo harness bot       run the fake bot once; writes a Verbose-shaped log and a capture bundle
 uv run echo pipeline harness  the whole chain on the harness (needs ECHO_MASK_KEY, 16+ bytes)

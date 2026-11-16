@@ -17,6 +17,10 @@ item that needs it starts. Tickets are listed at the end.
   DoD: `uv run echo --help` lists the groups; `uv run pytest` passes; CI green on a fresh clone.
 
 - [x] **I-01 Local harness** · M
+  _Extended 2026-11-16: the Core app also carries an `<ack-box>` web component (checkbox in an open
+  shadow root), a `<terms-box>` (checkbox in a closed shadow root, clicked by position), a summary
+  iframe on the confirmation page the bot reads the amount from, and a canvas chart; the bot's
+  steps and the synthetic XAML include them._
   Two fake web apps and a fake bot, so every later item can be built without production.
   `harness/app1`: Flask app over SQLite. Screens: search customer by name → results → customer page
   showing account number and the usual fields. `harness/app2`: search by account number → customer
@@ -60,6 +64,10 @@ item that needs it starts. Tickets are listed at the end.
   `docs/05` records the ChromiumAPI coexistence test as *pending real robot* with the exact test steps.
 
 - [x] **I-05 Screen capture** · M
+  _Extended 2026-11-16: every frame is captured (cross-origin ones through their own CDP session)
+  and composed into the screen (`iframe#f >> #x`); open and closed shadow roots are walked,
+  keyed (`#host >>> #x`) and serialized as declarative shadow DOM; canvas and embedded objects are
+  listed as `opaque` with a cropped PNG. No OCR. Details in docs/05._
   Per navigation (and per significant DOM mutation, debounced): DOM snapshot (`outerHTML`), a PNG
   screenshot, the URL, the title, and the list of interactive elements with their selectors
   (id, name, aria, CSS path, visible text). Dedupe by URL + DOM hash. Writes `screens/<n>.html|png|json`.

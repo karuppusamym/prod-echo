@@ -198,3 +198,11 @@ harness` does not run it.
 The fake bot writes the robot log in the expected shape above, with `Private` on one `TypeInto`.
 Chromium in the harness is launched by Playwright with the NetLog and remote-debugging flags so I-03
 to I-05 run against it unchanged.
+
+The Core app exercises the cases above in the bot's own path: the loan form's `<ack-box>` (open
+shadow root; the bot clicks `#ackChk`, which Playwright's CSS reaches) and `<terms-box>` (closed
+shadow root; no selector reaches it, so the bot clicks the checkbox by position inside the host);
+the confirmation page's summary iframe (`/loan/<n>/summary`; the bot reads `#sumAmt` inside it,
+UiPath selector `<webctrl tag='IFRAME' id='sumFrame' /><webctrl id='sumAmt' tag='SPAN' />`); and
+a canvas chart (opaque). A cross-origin frame and a recorder that attaches late are covered by
+their own browser tests, on pages served by the test.
