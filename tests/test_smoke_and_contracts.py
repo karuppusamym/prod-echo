@@ -8,10 +8,12 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
-from echo.analyze.models import BotTrace
+from echo.analyze.models import BehaviorCatalog, BotTrace
 from echo.capture.models import Manifest
 from echo.cli import app
 from echo.data.models import Associations, Provenance, SubsetSpec
+from echo.mask.models import MaskManifest
+from echo.runtime.models import Lease
 
 ROOT = Path(__file__).resolve().parents[1]
 SPECS = ROOT / "specs"
@@ -51,6 +53,19 @@ def test_subset_spec_example_validates() -> None:
 
 def test_associations_example_validates() -> None:
     Associations(**yaml.safe_load((SPECS / "associations.example.yaml").read_text()))
+
+
+def test_behaviors_example_validates() -> None:
+    BehaviorCatalog(**json.loads((SPECS / "behaviors.example.json").read_text()))
+
+
+def test_mask_manifest_examples_validate() -> None:
+    for name in ("mask.example.yaml", "mask.harness.yaml"):
+        MaskManifest.model_validate(yaml.safe_load((SPECS / name).read_text()))
+
+
+def test_lease_example_validates() -> None:
+    Lease(**json.loads((SPECS / "lease.example.json").read_text()))
 
 
 def test_no_connection_string_or_key_is_written_in_specs() -> None:

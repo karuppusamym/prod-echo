@@ -11,7 +11,7 @@ UiPath bots (unchanged)       Process analyzer                    Echo DB (one D
   NetLog ─────────────────┼──►  → process map, bot trace            │
   CDP / HAR ──────────────┤          │ subset spec      Synapse ────┘
   screens (DOM + PNG) ────┼──►  Lightweight app generator        Generated App1   Generated App2
-  UiPath XAML ────────────┘     DOM → templates bound to columns   (static HTML+JS + data service)
+  UiPath XAML ────────────┘     DOM → templates bound to columns   (templates + data service)
                                 → HTML+JS package per app  ──deploy──►   ▲ drive        ▲ drive
 App DB read replicas ─────────► Synapse / own extractor            Agentic runtime: any agent
   schema, rows, audit columns   closure queries, masking           runtime API: lease, release
@@ -23,7 +23,7 @@ App DB read replicas ─────────► Synapse / own extractor     
 | Component | Package | Items | One-line contract |
 |---|---|---|---|
 | Local harness | `harness/` | I-01 | Two fake apps + fake bot that produce every input the pipeline needs |
-| Evidence bundle | `echo/capture/bundle.py` | I-02, I-06 | Folder per robot session; manifest lists sources and runs |
+| Evidence bundle | `echo/capture/bundle.py`, `correlate.py` | I-02, I-06 | Folder per robot session; manifest lists sources and runs; correlation aligns the sources |
 | NetLog parser | `echo/capture/netlog.py` | I-03 | NetLog JSON → `requests.jsonl` |
 | CDP recorder | `echo/capture/cdp.py` | I-04 | Attach to running browser → HAR 1.2 with bodies |
 | Screen capture | `echo/capture/screens.py` | I-05 | DOM + PNG + selector list per screen |
@@ -39,12 +39,23 @@ App DB read replicas ─────────► Synapse / own extractor     
 | Masking | `echo/mask/` | I-17 | `mask(row, manifest, key)`; sanitize |
 | Loader | `echo/data/load.py` | I-18 | MERGE, id remap, batch tag, idempotent |
 | Templates | `echo/generate/template.py` | I-19 | DOM → template with slots |
-| Read wiring | `echo/generate/read.py` | I-20 | routes, queries, search |
-| Write wiring | `echo/generate/write.py` | I-21 | submit → rows via provenance |
-| Package | `echo/generate/build.py` | I-22 | versioned static package + data service |
+| Read wiring | `echo/generate/service.py`, `context.py`, `html.py` | I-20 | routes, queries, search; slots rendered server-side (ADR-010) |
+| Write wiring | `echo/generate/service.py`, `echo/data/load.py` (`WRITE_BASE`) | I-21 | submit → rows via provenance |
+| Behavior runtime | `echo/generate/runtime.js` | I-21a | one generic script interpreting `behaviors.json` |
+| Package | `echo/generate/build.py`, `serve.py` | I-22 | versioned package + data service |
+| Fidelity replay | `echo/generate/replay.py` | I-22a | bot trace replayed on the replicas, per-step compare |
+| UAT probe | `echo/capture/probe.py` | I-22b | probe a UAT instance for behaviors the bot never hit |
+| Behavior catalog | `echo/analyze/behaviors.py` | I-09a | before/after snapshot diffs → `behaviors.json` |
+| Trace diff | `echo/data/trace.py` | I-15 | tables the app reads vs the closure |
+| Leases | `echo/runtime/lease.py`, `masking.py` | I-23 | SQLite lease store; field masker for parity |
+| Step functions | `echo/pipeline.py` | all | one function per step; the CLI and `echo pipeline harness` call them |
 | Runtime API | `echo/runtime/api.py` | I-23 | lease / release / readiness |
 | Parity | `echo/runtime/parity.py` | I-24 | agent capture vs bot trace → diff report |
 | Baselines | `echo/runtime/baseline.py` | I-25 | versioned loads, pinning, reset, quarantine |
+
+`echo pipeline harness` runs steps 1-7 below, replay, a scripted agent and its parity check on the harness. Global options `--process`, `--db`,
+`--xaml`, `--mask-manifest` (README) point the same steps at a real process; the steps that need the
+harness (`harness bot`, `capture probe`, `pipeline harness`) refuse to run elsewhere.
 
 ## Data flow in one process run (harness terms)
 
@@ -56,11 +67,13 @@ App DB read replicas ─────────► Synapse / own extractor     
 4. `echo data schema pull` reads the replica schema; `echo data bind` finds the columns behind the
    typed values; `echo data classify` decides read vs write per entity and produces `provenance.json`.
 5. `echo data spec generate` writes `subset.yaml`; a human adds cross-app links and reviews.
-6. The extractor (own or Synapse) pulls the closure for the selected customers; `echo mask` masks the
-   agreed fields under the environment key and runs sanitize; `echo data load` merges into the Echo DB
-   as a new baseline.
+6. `echo data extract` pulls the closure for the selected customers (own extractor or Synapse),
+   masks the agreed fields under the environment key and runs sanitize, writing a baseline
+   (`echo mask manifest` proposes the manifest, `echo mask sanitize` prints a baseline's report);
+   `echo data load` merges the baseline into the Echo DB. Nothing unmasked is written to disk.
 7. `echo generate build` turns the DOM snapshots into templates bound to Echo DB columns and
-   packages one static app per source app, with a data service for reads, search and submits.
+   packages one app per source app; the data service renders the slots and handles reads, search and
+   submits (ADR-010).
 8. `echo runtime serve` exposes lease/release/readiness. An agent leases a customer, drives the
    generated apps (captured with the same tools), releases. `echo runtime parity` compares the
    agent's capture with the bot trace.
@@ -73,7 +86,7 @@ App DB read replicas ─────────► Synapse / own extractor     
 - ADR-004: Synapse behind an `Extractor` protocol with an in-repo fallback.
 - ADR-005: Parity is capture-to-capture; the agent is recorded with the same tools as the bot.
 - ADR-006: Direct DB `MERGE` is the load path; no app APIs.
-- ADR-007: Plain Python + files + SQLite/Postgres; no scheduler, queue or workflow engine in v1.
+- ADR-007: Plain Python + files + SQLite (Postgres optional later); no scheduler, queue or workflow engine in v1.
 
 ## Boundaries that matter for security review
 

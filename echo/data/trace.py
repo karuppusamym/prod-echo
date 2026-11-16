@@ -84,9 +84,8 @@ def propose_associations(
         if t is None:
             continue
         with eng.connect() as con:
-            sample = [
-                dict(r) for r in con.execute(text(f'SELECT * FROM "{tname}" LIMIT 200')).mappings()
-            ]
+            res = con.execute(text(f'SELECT * FROM "{tname}"'))
+            sample = [dict(r) for r in res.mappings().fetchmany(200)]  # portable: no LIMIT
         best = None
         for c in t.columns:
             if c.name in t.pk:

@@ -137,5 +137,30 @@ this, the harness App2 gained client-side required-amount validation and a `chan
 
 **Not done, and why.** I-07, I-08, I-09 and I-10 are done on the harness but each DoD also names a
 real artifact (a team XAML, a Verbose export, the G1 bundle, a replica); I-16 needs the Synapse
-owner's agreement; I-26 needs approvals A, B, C. I-22b is built on the harness; probing a real UAT needs approval E. The plan
-records each as pending with what is missing.
+owner's agreement; I-26 needs approvals A, B, C. I-22b is built on the harness; probing a
+real UAT needs approval E. The plan records each as pending with what is missing.
+
+## 2026-11-16 — Independent review fixes and a configurable pipeline
+
+Two independent reviews (code; docs against code) were run by a second model and their verified
+findings applied. **Safety:** the mask gate now always requires `review.approved_by` and blocks
+personal-looking columns missing from the manifest (`unclassified_policy: block`); unmasked
+extracted rows stay in memory and never reach disk; the closure no longer fans out through shared
+parents (owned vs ancestor rows, a per-seed `max_rows` cap) and refuses tables without a primary
+key; reset walks only the entity's own rows, so another lease's run-created rows under a shared
+parent are safe; refresh skips quarantined customers and a lease stuck in `resetting` is
+quarantined; HAR files redact credentials (auth headers, cookies, tokens, password-like form
+fields); leakage reports name columns, never values, and also match reformatted values; package
+metadata keeps path patterns only; replica sessions are read-only on PostgreSQL, Oracle and SQL
+Server too. **Correctness and portability:** no `LIMIT` on replicas; datetime parameters and a
+per-alias timezone (`ECHO_DB_<ALIAS>_TZ`) for audit columns; the written-rows scan filters in SQL;
+exact Decimal change detection; positional bind names; BIGINT id map; composite FKs; schema-drift
+detection; JSON round-trip of Decimal, dates and bytes; standard-SQL Synapse job files in chunks of
+at most 500; batched re-reads; FF1 domains of at least 1,000,000; full-address email masking;
+minimum key length; the manifest's `key_env` honored; LIKE wildcards escaped; 400 on malformed
+write bodies. **Functionality:** the pipeline is no longer harness-only: global
+`--process/--db/--xaml/--mask-manifest` options choose the process, replica, UiPath project and
+manifest; seeds come from bind evidence; the trace diff reads exported trace files outside the
+harness; proposed links and associations need human review outside the harness; extraction is
+gated on the spec checklist. Tests: 123 fast (16 new in `tests/test_review_fixes.py`) plus 15
+browser. Branches: only `main` exists; nothing to merge or delete.

@@ -142,15 +142,32 @@ class Replica:
                         f'INSERT INTO "{w["table"]}" ('
                         + ", ".join(f'"{c}"' for c in cols)
                         + ") VALUES ("
-                        + ", ".join(f":{c}" for c in cols)
+                        + ", ".join(f":p{i}" for i in range(len(cols)))
                         + ")"
                     ),
-                    row,
-                )
+                    {f"p{i}": row[c] for i, c in enumerate(cols)},  # column names may not be
+                )  # valid bind names (ORDER#, AMT$)
             except IntegrityError as exc:
                 raise HTTPException(400, f"rejected by the database: {exc.orig}") from None
         redirect = T.fill(w["redirect"], {w["table"]: [row]}) if w.get("redirect") else None
         return {"created": {w["pk"]: row[w["pk"]]}, "redirect": redirect, "flagged": flagged}
+
+
+async def _json_object(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(400, "body is not JSON") from None
+    if not isinstance(body, dict):
+        raise HTTPException(400, "body must be a JSON object")
+    return body
+
+
+def _values(body: dict) -> dict:
+    v = body.get("values") or {}
+    if not isinstance(v, dict):
+        raise HTTPException(400, "values must be an object of field name -> value")
+    return {str(k): (None if x is None else str(x)) for k, x in v.items()}
 
 
 def create_app(
@@ -181,8 +198,8 @@ def create_app(
 
     @api.post("/echo-write/{screen}")
     async def write(screen: str, request: Request) -> JSONResponse:
-        body = await request.json()
-        return JSONResponse(rep.write(screen, body.get("form", ""), body.get("values") or {}))
+        body = await _json_object(request)
+        return JSONResponse(rep.write(screen, body.get("form", ""), _values(body)))
 
     @api.post("/echo-unobserved")
     async def unobserved(request: Request) -> dict:
@@ -215,10 +232,8 @@ def create_app(
             if f.get("write") and f.get("action"):
 
                 async def ep_write(request: Request, scr=scr, f=f) -> JSONResponse:  # noqa: ANN001, B008
-                    body = await request.json()
-                    return JSONResponse(
-                        rep.write(scr["name"], f["selector"], body.get("values") or {})
-                    )
+                    body = await _json_object(request)
+                    return JSONResponse(rep.write(scr["name"], f["selector"], _values(body)))
 
                 api.add_api_route(f["action"], ep_write, methods=["POST"])
 

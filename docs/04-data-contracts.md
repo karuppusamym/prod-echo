@@ -22,7 +22,19 @@ bundles/<session_id>/
   screens/timeline.jsonl every settled point: which screen was showing when, with element states
   assets/                stylesheets, fonts, images deduped by URL + sha256; index.json (I-04)
   recorder.json          the CDP sidecar's exit code
+  recorder.err           sidecar stderr (not part of the contract)
+  .recorder-ready        written by the sidecar once attached (contains the port)
+  probe.json             probe bundles only: what was probed, accepted and rejected (I-22b)
+  bot-runs.json, access.jsonl, harness-db-delta.json   harness bundles only: the bot's runs, the
+                         apps' request log, the DB rows each run wrote (test oracle, not read by the pipeline)
 ```
+
+Credentials never reach the bundle: the HAR recorder replaces `Authorization`, `Cookie`,
+`Set-Cookie`, token and api-key headers and password/secret/token/otp/pin form parameters with
+`"[redacted]"`. Business fields are kept.
+
+Sibling output folders next to `bundles/`: `bundles-agent/` (scripted agent runs), `bundles-replay/`
+(fidelity replay captures), `bundles-probe/` (UAT probes), `runs/` and `runs-agent/` (robot logs).
 
 `manifest.json`
 ```json
@@ -47,13 +59,20 @@ bundles/<session_id>/
 `screens/<n>.json`
 ```json
 {"n": 4, "url": "https://app2/loan/new", "title": "New loan", "dom_hash": "sha256:…",
- "captured": "2026-11-10T14:03:02.004Z",
+ "captured": "2026-11-10T14:03:02.004Z", "png": "screens/4.png",
  "elements": [
    {"tag": "input", "id": "loanAmt", "name": "loanAmt", "label": "Loan amount",
     "css": "#loanAmt", "aria": null, "text": null, "editable": true},
    {"tag": "button", "id": "submit", "text": "Submit", "css": "#submit", "editable": false}
  ]}
 ```
+
+`runs/<run_id>.json` (I-06, `RunCorrelation`): `{run_id, session_id, clock_offset_ms, activities: [{seq, ts,
+end, activity, display, selector, screen, action_id, requests: [request ids], har_entries: [indexes]}]}`.
+
+`actions.jsonl` line (I-05): `{action_id, event, ts, settled, target{key, tag, id, name, css, text,
+type}, value, typed, url_before, url_after, screen_before, screen_after, before: [element states],
+after: [element states]}`; an element state is `{key, tag, visible, enabled, value, text, options}`.
 
 ## Robot log trace (I-08)
 
@@ -95,7 +114,17 @@ omitted. Fields the parser does not understand go to `unmapped_fields`, never si
  "flow": [{"from": "app1.search.acctNo", "to": "app2.search.acct", "carried_by": "bot"}]}
 ```
 
+`io` is `typed`, `read`, `click` or `select`. Screens may also carry a `title`. The example above is
+shortened; `specs/bot-trace.example.json` shows the harness process (`harness_loan`, screens
+`search`, `new_loan`, `loan_confirmation`).
+
 ## Bot trace (I-09) — the golden run for parity
+
+Illustrative values; the real, tested example is `specs/bot-trace.example.json`. A step's `action` is
+`type`, `read`, `click` or `select`. Besides `seq`, `app`, `screen`, `action`, `field` and `value`,
+the analyzer adds `selector`, `value_source` (`robot_log` or `har` when the log redacted the value),
+`redacted`, `screen_n`, `action_id`, `requests` and `ts`; the spec example also shows `row`.
+`work/<process>/bot-trace.json` is the golden run; one trace per run is in `bot-traces/<run_id>.json`.
 
 ```json
 {"run_id": "…", "process": "loan_payoff_v3", "masked": false,
@@ -138,12 +167,25 @@ seeds:
   policy: [referenced_by_runs, recent_changed]
   window: 7d
   max_per_app: 500
+  keys: ["CUSTOMER:4471"]       # optional explicit seeds, TABLE:KEY; derived from bind evidence otherwise
 closure:
   associations: associations.yaml      # hand-added relations with no declared FK
   limits: {ADDRESS: 20, PHONE: 10, ACCT: 20}
 ```
 
+`via` is `crosswalk`, `equal` or `shared_column`. `spec generate` proposes links with `proposed: true`;
+`spec validate` fails until a reviewer removes the flag (the harness pipeline does that itself for
+synthetic data). `seeds.keys` come from bind evidence on the root entity table, or through a
+single-column FK to it. `db` is the alias from the global `--db` option, never a connection string.
+`extract` refuses to run while `spec validate` reports problems.
+
 ## Provenance map (I-12)
+
+`work/<process>/provenance.json` is a **list** of the objects below, one per entity. Each also has
+`side: read|write` (default `write`). `class` is `bot_entered`, `app_derived`, `null`, `untouched` or
+`unclassified`; `source` is `generated`, `timestamp`, `default` or `computed`. Field references use
+the screen names of the process map (`app2.new_loan.loanAmt`; the example below is shortened).
+`app-derived.json` lists the `app_derived` columns per entity.
 
 ```json
 {"app": "app2", "entity": "loan", "table": "LOAN", "run_id": "…",
@@ -173,6 +215,16 @@ columns:
 review: {approved_by: "<data owner>", date: null, unclassified_policy: block}
 ```
 
+Techniques: `ff1_ssn_valid`, `ff1_luhn` (7+ digits), `ff1_keep_area`, `dict_hmac` (needs `dict`),
+`full_name` (consistent with first/last), `entity_shift` (optional `entity_key: TABLE.COLUMN` keys the
+per-entity date shift), `hmac_local_part` (HMAC of the whole address) and `keep` (declare a
+personal-looking column as deliberately unmasked). The manifest rejects unknown keys. Gate at
+baseline build: `review.approved_by` is always required; extracted columns whose name looks like
+personal data and that are not listed block the build while `unclassified_policy: block` (the
+default), and the baseline manifest records them as `unclassified_columns`. `key_env` names the key
+variable (default `ECHO_MASK_KEY`); the key must be at least 16 bytes. `specs/mask.harness.yaml` is the
+manifest the harness pipeline uses.
+
 ## Lease (I-23)
 
 ```json
@@ -181,4 +233,32 @@ review: {approved_by: "<data owner>", date: null, unclassified_policy: block}
  "holder": "agent-team-a/run-104", "issued": "…", "ttl_minutes": 30, "state": "leased"}
 ```
 States: `available → leased → running → completed|failed → resetting → available`, plus
-`quarantined` from any unverifiable step.
+`quarantined` from any unverifiable step; a lease stuck in `resetting` past its expiry is
+quarantined. A lease also carries `expires`, `outcome` (`pass|fail|abandoned`) and, per entity, an
+optional `masked_key`.
+
+## Behavior catalog (I-09a)
+
+`work/<process>/behaviors.json`, example `specs/behaviors.example.json`. One entry per screen, rules
+inferred from before/after snapshot pairs.
+
+```json
+{"process": "harness_loan",
+ "screens": [{"app": "app2", "screen": "new_loan", "url_pattern": "/loan/new",
+   "rules": [{"id": "app2.new_loan.r1", "kind": "show",
+              "trigger": {"field": "#loanAmt", "event": "input",
+                          "condition": {"op": "gt", "bound": [20000, 30000]}},
+              "target": "#cosignerRow", "params": {},
+              "evidence": ["<action ids>"], "single_observation": false,
+              "sources": ["production"]}],
+   "observed": [{"field": "#loanAmt", "event": "input", "count": 2, "values": ["12500"],
+                 "evidence": ["<action ids>"], "sources": ["production"]}],
+   "unclassified": []}]}
+```
+
+`kind` is `show`, `hide`, `enable`, `disable`, `set_options`, `format`, `set_value`, `delay` or
+`navigate`. A rule without evidence is invalid. `bound` is the uncertainty interval of a numeric
+threshold; `single_observation` flags a condition seen once for human review. `sources` is
+`["production"]`, plus `"uat"` for evidence that came from a probe. `unclassified` lists behaviors
+that fit no kind; `observed` lists every interaction the capture saw, which the behavior runtime uses
+to decide what is `unobserved`.

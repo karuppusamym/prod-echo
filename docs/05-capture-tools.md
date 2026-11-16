@@ -59,7 +59,11 @@ Sidecar (Python, Playwright's CDP session):
    `Network.responseReceived`, `Network.loadingFinished`; fetch bodies with `Network.getResponseBody`
    for xhr/fetch/document; request bodies are in `requestWillBeSent.request.postData`.
 3. Write HAR 1.2 per page session; flush on `loadingFinished`; on disconnect, flush and exit 0.
-4. Filter static assets by resource type unless `--all`.
+4. Stylesheets, fonts and images go to a deduped `assets/` store (URL + sha256), never as bodies in
+   the HAR; script bodies are never stored. `--all` also keeps bodies of the other non-script types
+   (the default is xhr, fetch and document).
+5. Redact before writing: `Authorization`, `Cookie`, `Set-Cookie`, token and api-key headers and
+   password/secret/token/otp/pin form parameters become `"[redacted]"`; business fields are kept.
 
 Coexistence test (run once on a real robot under approval A, record result in CHANGELOG).
 **Status: pending real robot** (I-04 built on the harness only). Exact steps:
@@ -82,11 +86,15 @@ completes and the HAR contains its requests. If the workflow fails, fall back to
 
 ## Screen capture (I-05)
 
-Inside the same CDP session: on `Page.frameNavigated` and after a debounced
-`DOM.documentUpdated`/mutation signal, run `Runtime.evaluate(document.documentElement.outerHTML)`,
-`Page.captureScreenshot`, and an injected script that lists interactive elements (inputs, buttons,
+Inside the same CDP session, an observe-only page script (`echo/capture/page_script.js`) is injected
+with `Page.addScriptToEvaluateOnNewDocument` and reports through a Runtime binding. It never changes
+the page. It produces: the DOM snapshot (`outerHTML`), the interactive element list (inputs, buttons,
 links, selects, contenteditable) with id, name, label text, aria-label, a stable CSS path and the
-visible text. Dedupe by URL + sha256 of a normalized DOM (whitespace collapsed, scripts removed).
+visible text, a throttled PNG (`Page.captureScreenshot`), and for every user action (click, input,
+change; input bursts coalesced) a before/after pair of element states (visible, enabled, value,
+options). Output: `screens/<n>.html|png|json`, `actions.jsonl` and `screens/timeline.jsonl` (which
+screen was showing at each settled point). Dedupe by URL + sha256 of a normalized DOM (whitespace
+collapsed, scripts removed). Navigation-causing actions pair with the next page's load snapshot.
 
 Why both DOM and PNG: the DOM is what the generator needs (selectors, structure); the PNG is what a
 human needs to recognize a screen and what parity reports show when a step differs.
@@ -95,7 +103,7 @@ human needs to recognize a screen and what parity reports show when a step diffe
 
 Inputs: `project.json`, every `*.xaml`, including invoked workflows. UiPath selectors are strings of
 tags: `<wnd app='chrome.exe' title='Customer Search*' /><webctrl aaname='name' tag='INPUT' />`.
-Parse with `lxml`; selectors with a tiny tag-attribute parser (they are not XML in the attribute).
+Parse with the standard library's `xml.etree.ElementTree`; selectors with a tiny tag-attribute parser (they are not XML in the attribute).
 Activities of interest and the variable or argument they carry:
 `TypeInto` (Text), `Click` (none), `GetText` / `GetAttribute` (output variable), `ExecuteQuery` /
 `ExecuteNonQuery` (Sql), `InvokeWorkflowFile` (WorkflowFileName + arguments), `Assign`
@@ -103,6 +111,23 @@ Activities of interest and the variable or argument they carry:
 
 Output: `process-map.json` skeleton (apps by `app`/`title` match, screens by title and URL hints,
 fields by selector, io = typed/read/click) for the analyzer to enrich with runtime evidence.
+
+Run it with `echo analyze xaml <folder> [--out file]`; `echo analyze process --xaml <folder>` (global
+option `--xaml`) joins a project with a bundle.
+
+## UAT behavior probing (I-22b, optional, approval E)
+
+`echo capture probe [--variant changed] [--no-rebuild]` (harness only today; a real UAT needs approval
+E and the same code pointed at it). A second harness instance with its own DB (`uat/uat-<variant>.sqlite`,
+ports 5111/5112) stands in for UAT. The probe drives it with the same capture tools on a record
+reserved for probing, and only for the gaps the behavior catalog reports: it bisects numeric
+conditions inside their evidence bound and submits each posted form with its first field empty.
+Before a UAT screen is trusted its element set is compared with the production capture of the same
+screen; on a mismatch production wins and the screen is dropped and reported (`--variant changed`
+adds a `#rate` field to show this). Outputs: `bundles-probe/probe_<id>/` (with `probe.json`) and the
+list `work/<process>/probes.json`; accepted pairs feed the behavior catalog tagged
+`sources: ["uat"]`. By default the command re-infers behaviors and rebuilds the apps. `echo pipeline
+harness` does not run it.
 
 ## Harness shapes (I-01)
 

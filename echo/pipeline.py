@@ -1,16 +1,23 @@
-"""The whole chain on the local harness, step by step, every output a plain file under
-`work/<process>/` (and the Echo DB under `echo_db/`, generated apps under `generated_apps/`).
+"""The whole chain, step by step, every output a plain file under `work/<process>/` (the Echo
+DB under `echo_db/`, generated apps under `generated_apps/`).
 
     capture (bot) -> analyze -> behaviors -> schema -> bind -> classify -> trace diff ->
     subset spec -> baseline (extract, mask, sanitize) -> publish -> generate -> replay
 
 Each step is a function taking the Workspace so the CLI and the tests call the same code.
+
+The Workspace says which process, replica alias, UiPath project and mask manifest to use
+(CLI `--process/--db/--xaml/--mask-manifest`, or ECHO_PROCESS / ECHO_DB_ALIAS / ECHO_XAML_DIR /
+ECHO_MASK_MANIFEST). The defaults are the local harness. Three steps exist only on the harness
+because they drive the fake apps: `step_capture` (the fake bot), `step_trace_diff`'s recording
+(elsewhere it reads exported trace files from `work/<process>/traces/`), and `step_probe`.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -20,22 +27,43 @@ from echo.data.models import Binds, Provenance
 from echo.util import home, read_json, write_json
 
 log = logging.getLogger(__name__)
-PROCESS = "harness_loan"
-XAML_DIR = Path(__file__).resolve().parent.parent / "harness" / "uipath" / "harness_loan"
-MASK_TEMPLATE = Path(__file__).resolve().parent.parent / "specs" / "mask.harness.yaml"
+REPO = Path(__file__).resolve().parent.parent
+PROCESS = "harness_loan"  # the harness process (default)
+XAML_DIR = REPO / "harness" / "uipath" / "harness_loan"
+MASK_TEMPLATE = REPO / "specs" / "mask.harness.yaml"
+
+
+class HarnessOnly(RuntimeError):
+    pass
 
 
 @dataclass
 class Workspace:
     root: Path
+    process: str = field(default_factory=lambda: os.environ.get("ECHO_PROCESS", PROCESS))
+    db: str = field(default_factory=lambda: os.environ.get("ECHO_DB_ALIAS", "harness"))
+    xaml_dir: Path = field(
+        default_factory=lambda: Path(os.environ.get("ECHO_XAML_DIR", str(XAML_DIR)))
+    )
+    mask_manifest: Path = field(
+        default_factory=lambda: Path(os.environ.get("ECHO_MASK_MANIFEST", str(MASK_TEMPLATE)))
+    )
 
     @classmethod
     def default(cls) -> Workspace:
         return cls(home())
 
     @property
+    def is_harness(self) -> bool:
+        return self.db == "harness"
+
+    def require_harness(self, what: str) -> None:
+        if not self.is_harness:
+            raise HarnessOnly(f"{what} drives the local fake apps and runs only with --db harness")
+
+    @property
     def work(self) -> Path:
-        return self.root / "work" / PROCESS
+        return self.root / "work" / self.process
 
     @property
     def echo_db(self) -> Path:
@@ -55,6 +83,7 @@ class Workspace:
 
 
 def step_capture(ws: Workspace, runs: int = 3) -> Path:
+    ws.require_harness("capture with the fake bot")
     from harness.bot import run_session
     from harness.server import start
 
@@ -72,7 +101,9 @@ def step_analyze(ws: Workspace, bundle: Path | None = None) -> dict:
     from echo.analyze.xaml import parse_project, to_process_map
 
     bundle = bundle or ws.bundle
-    pm = to_process_map(parse_project(XAML_DIR), xaml_version="synthetic-1")
+    pm = to_process_map(
+        parse_project(ws.xaml_dir), xaml_version="synthetic-1" if ws.is_harness else None
+    )
     write_json(ws.work / "process-map.xaml.json", pm.model_dump(by_alias=True))
     return write_outputs(analyze(bundle, pm), ws.work)
 
@@ -100,21 +131,21 @@ def step_behaviors(ws: Workspace) -> dict:
 def step_schema(ws: Workspace) -> dict:
     from echo.data import db, schema
 
-    sc = schema.pull(db.engine("harness"), "harness", counts=True)
-    write_json(ws.work / "schema" / "harness.json", sc.model_dump())
+    sc = schema.pull(db.engine(ws.db), ws.db, counts=True)
+    write_json(ws.work / "schema" / f"{ws.db}.json", sc.model_dump())
     return {"tables": len(sc.tables)}
 
 
 def _schema(ws: Workspace):  # noqa: ANN202
     from echo.data import schema
 
-    return schema.load(ws.work / "schema" / "harness.json")
+    return schema.load(ws.work / "schema" / f"{ws.db}.json")
 
 
 def step_bind(ws: Workspace) -> dict:
     from echo.data import bind, db
 
-    b = bind.bind(db.engine("harness"), _schema(ws), traces(ws), "harness")
+    b = bind.bind(db.engine(ws.db), _schema(ws), traces(ws), ws.db, tz=db.tz_for(ws.db))
     write_json(ws.work / "binds.json", b.model_dump())
     return {"binds": len(b.binds), "below_threshold": sum(1 for x in b.binds if x.note)}
 
@@ -123,7 +154,9 @@ def step_classify(ws: Workspace) -> dict:
     from echo.data import db, provenance
 
     binds = Binds(**read_json(ws.work / "binds.json"))
-    provs = provenance.classify(db.engine("harness"), _schema(ws), traces(ws), binds)
+    provs = provenance.classify(
+        db.engine(ws.db), _schema(ws), traces(ws), binds, tz=db.tz_for(ws.db)
+    )
     write_json(ws.work / "provenance.json", [p.model_dump(by_alias=True) for p in provs])
     write_json(ws.work / "app-derived.json", provenance.app_derived_list(provs))
     return {
@@ -136,25 +169,46 @@ def provs(ws: Workspace) -> list[Provenance]:
     return [Provenance(**p) for p in read_json(ws.work / "provenance.json")]
 
 
-def step_trace_diff(ws: Workspace, accept: bool = True) -> dict:
-    """Open one record in App2 with SQL tracing, diff with the closure, propose associations."""
-    from echo.data import closure, db, trace
-    from harness import db_path
+def step_trace_diff(ws: Workspace, accept: bool | None = None) -> dict:
+    """Tables the app reads when it opens one record vs the closure; propose associations.
 
-    eng, sc = db.engine("harness"), _schema(ws)
-    acct = next(s.value for s in golden(ws).steps if s.field == "acct" and s.action == "type")
-    stm = trace.record_harness_app_load(
-        db_path(),
-        "app2",
-        f"/api/customer?acct={acct}",
-        ws.work / "traces" / "app2_open_customer.sql",
-    )
+    Harness: App2 is opened with SQL tracing on. Elsewhere: every `*.sql` file in
+    `work/<process>/traces/` (one statement per line, exported from the DB's own tracing) is read,
+    and the seed is the first bound value whose table has a single-column key. Proposed
+    associations are accepted automatically only on the harness; otherwise they are written to
+    `associations.proposed.yaml` for a human to review and copy into `associations.yaml`."""
+    from echo.data import closure, db, trace
+
+    eng, sc = db.engine(ws.db), _schema(ws)
+    accept = ws.is_harness if accept is None else accept
+    if ws.is_harness:
+        from harness import db_path
+
+        acct = next(s.value for s in golden(ws).steps if s.field == "acct" and s.action == "type")
+        stm = trace.record_harness_app_load(
+            db_path(),
+            "app2",
+            f"/api/customer?acct={acct}",
+            ws.work / "traces" / "app2_open_customer.sql",
+        )
+        seed = ("ACCT", "ACCT_NO", acct)
+    else:
+        files = sorted((ws.work / "traces").glob("*.sql"))
+        if not files:
+            out = {"skipped": f"no trace file in {ws.work / 'traces'}; see docs/06 (I-15)"}
+            write_json(ws.work / "trace-diff.json", out)
+            return out
+        stm = [x for f in files for x in trace.import_trace(f)]
+        seed = _first_bound_key(ws, sc)
+        if seed is None:
+            raise ValueError("no bound value on a table with a single-column key to seed from")
     assoc = closure.load_associations(ws.work / "associations.yaml")
-    res = closure.closure(eng, sc, [("ACCT", "ACCT_NO", acct)], assoc)
+    res = closure.closure(eng, sc, [seed], assoc)
     d = trace.diff(stm, res.tables())
-    out = {"before": d}
+    out: dict = {"before": d}
     if d["read_but_not_in_closure"]:
-        prop = trace.propose_associations(eng, sc, d["read_but_not_in_closure"], res, "harness")
+        prop = trace.propose_associations(eng, sc, d["read_but_not_in_closure"], res, ws.process)
+        out["proposed"] = prop.model_dump(by_alias=True)
         if accept:
             merged = assoc or prop.model_copy(update={"associations": []})
             have = {(a.child, a.column) for a in merged.associations}
@@ -163,61 +217,124 @@ def step_trace_diff(ws: Workspace, accept: bool = True) -> dict:
                     a.reviewed_by = "harness-pipeline (synthetic data)"
                     merged.associations.append(a)
             closure.write_associations(ws.work / "associations.yaml", merged)
-            res = closure.closure(eng, sc, [("ACCT", "ACCT_NO", acct)], merged)
+            res = closure.closure(eng, sc, [seed], merged)
             out["after"] = trace.diff(stm, res.tables())
-        out["proposed"] = prop.model_dump(by_alias=True)
+        else:
+            closure.write_associations(ws.work / "associations.proposed.yaml", prop)
     write_json(ws.work / "trace-diff.json", out)
     return out
 
 
-def step_spec(ws: Workspace, review: bool = True) -> dict:
-    from echo.data import spec
-
+def _first_bound_key(ws: Workspace, sc) -> tuple | None:  # noqa: ANN001
     binds = Binds(**read_json(ws.work / "binds.json"))
+    for b in binds.binds:
+        for c in b.candidates[:1]:
+            t = sc.table(c.table)
+            if t is None or len(t.pk) != 1:
+                continue
+            for ev in c.evidence:
+                if t.pk[0] in ev.key:
+                    return (t.name, t.pk[0], ev.key[t.pk[0]])
+    return None
+
+
+def root_entity(ws: Workspace) -> tuple[str, str]:
+    """(table, key column) of the entity agents lease: the read-side `customer` entity of the
+    subset spec, else its first read-side entity."""
+    from echo.data import spec as S
+
+    sp = S.load(ws.work / "subset.yaml")
+    reads = [e for a in sp.apps for e in a.entities if e.side == "read"]
+    root = next((e for e in reads if e.name == "customer"), reads[0] if reads else None)
+    if root is None:
+        raise ValueError("the subset spec has no read-side entity to lease")
+    return root.table, root.key
+
+
+def seed_keys(ws: Workspace, sc, root_table: str) -> list[str]:  # noqa: ANN001
+    """referenced_by_runs: the root records the bot's runs touched, found through the bind
+    evidence (directly on the root table, or through a single-column FK to it)."""
     from sqlalchemy import text
 
     from echo.data import db
 
-    accts = sorted(
-        {
-            s.value
-            for t in traces(ws)
-            for s in t.steps
-            if s.field == "acct" and s.action == "type" and s.value
-        }
-    )
-    with db.engine("harness").connect() as con:
-        seeds = sorted(
-            {
-                f"CUSTOMER:{con.execute(text('SELECT CUST_ID FROM ACCT WHERE ACCT_NO = :a'), {'a': a}).scalar()}"
-                for a in accts
-            }
-        )
+    root = sc.table(root_table)
+    if root is None or len(root.pk) != 1:
+        return []
+    out: set[str] = set()
+    binds = Binds(**read_json(ws.work / "binds.json"))
+    with db.engine(ws.db).connect() as con:
+        for b in binds.binds:
+            if b.io not in ("type", "select", "read"):
+                continue
+            for c in b.candidates[:1]:
+                t = sc.table(c.table)
+                if t is None or len(t.pk) != 1:
+                    continue
+                for ev in c.evidence:
+                    key = ev.key.get(t.pk[0])
+                    if key is None:
+                        continue
+                    if t.name == root_table:
+                        out.add(f"{root_table}:{key}")
+                        continue
+                    fk = next(
+                        (f for f in t.fks if f.ref_table == root_table and len(f.columns) == 1),
+                        None,
+                    )
+                    if fk is None:
+                        continue
+                    v = con.execute(
+                        text(f'SELECT "{fk.columns[0]}" FROM "{t.name}" WHERE "{t.pk[0]}" = :k'),
+                        {"k": key},
+                    ).scalar()
+                    if v is not None:
+                        out.add(f"{root_table}:{v}")
+    return sorted(out)
+
+
+def step_spec(ws: Workspace, review: bool | None = None, max_per_app: int = 200) -> dict:
+    """Generate subset.yaml. Proposed links are marked reviewed automatically only on the
+    harness (synthetic data); elsewhere a human removes `proposed: true` after checking them."""
+    from echo.data import spec
+
+    review = ws.is_harness if review is None else review
+    binds = Binds(**read_json(ws.work / "binds.json"))
+    sc = _schema(ws)
     sp = spec.generate(
         process_map(ws),
         binds,
         provs(ws),
-        _schema(ws),
-        "harness",
+        sc,
+        ws.db,
         associations="associations.yaml",
-        max_per_app=200,
-        seed_keys=seeds,
+        max_per_app=max_per_app,
     )
+    sp.process = ws.process
+    reads = [e for a in sp.apps for e in a.entities if e.side == "read"]
+    root = next((e for e in reads if e.name == "customer"), reads[0] if reads else None)
+    if root is not None:
+        sp.seeds.keys = seed_keys(ws, sc, root.table)
     if review:
-        sp = spec.mark_reviewed(sp)  # the harness pipeline acts as reviewer for synthetic data
+        sp = spec.mark_reviewed(sp)
     spec.dump(sp, ws.work / "subset.yaml")
     return {
-        "problems": spec.validate(sp, _schema(ws)),
+        "problems": spec.validate(sp, sc),
         "links": [ln.model_dump(by_alias=True) for ln in sp.links],
+        "seeds": len(sp.seeds.keys),
     }
 
 
 def mask_manifest_path(ws: Workspace) -> Path:
-    """The harness manifest, ticked by the pipeline as data owner of the synthetic data."""
+    """The manifest the baseline masks with: work/<process>/mask.yaml, copied from
+    `ws.mask_manifest` the first time. On the harness the pipeline ticks `approved_by` itself
+    (synthetic data); elsewhere the data owner's approval must already be in the file."""
     p = ws.work / "mask.yaml"
     if not p.exists():
-        data = yaml.safe_load(MASK_TEMPLATE.read_text(encoding="utf-8"))
-        data["review"]["approved_by"] = "harness-pipeline (synthetic data only)"
+        data = yaml.safe_load(Path(ws.mask_manifest).read_text(encoding="utf-8"))
+        if ws.is_harness:
+            data["review"]["approved_by"] = "harness-pipeline (synthetic data only)"
+        p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return p
 
@@ -239,21 +356,35 @@ def step_baseline(ws: Workspace, baseline: str | None = None) -> dict:
 
     bl = baseline or B.next_id(ws.baselines)
     mp = mask_manifest_path(ws)
+    manifest = load_manifest(mp)
     sp = spec.load(ws.work / "subset.yaml")
     sc = closure.schema_with_associations(
         _schema(ws), closure.load_associations(ws.work / "associations.yaml")
     )
+    problems = spec.validate(sp, _schema(ws))
+    if problems:  # the docs/06 review checklist gates every extraction
+        raise B.SanitizeFailed("subset spec fails its review checklist: " + "; ".join(problems))
+    if ws.is_harness:
+        fks, identity = HARNESS_FKS, HARNESS_IDENTITY_CHECKS
+    else:
+        fks = [
+            (t.name, fk.columns[0], fk.ref_table, fk.ref_columns[0])
+            for t in sc.tables
+            for fk in t.fks
+            if len(fk.columns) == 1
+        ]
+        identity = []  # cross-app identity checks are declared per process (docs/06)
     return B.build(
         ws.baselines,
         bl,
-        db.engine("harness"),
+        db.engine(ws.db),
         sc,
         sp,
-        load_manifest(mp),
+        manifest,
         mp.read_text(encoding="utf-8"),
-        get_key(),
-        HARNESS_FKS,
-        HARNESS_IDENTITY_CHECKS,
+        get_key(manifest.key_env),
+        fks,
+        identity,
         ws.work,
         spec_dir=ws.work,
     )
@@ -308,7 +439,7 @@ def step_generate(ws: Workspace, apps: list[str] | None = None, allow_leaks: boo
         catalog=BehaviorCatalog(**read_json(ws.work / "behaviors.json")),
         schema=_schema(ws),
         assoc=closure.load_associations(ws.work / "associations.yaml"),
-        src=db.engine("harness"),
+        src=db.engine(ws.db),
         echo=sqlite_engine(ws.echo_db, readonly=True),
         binds=Binds(**read_json(ws.work / "binds.json")),
         provenance=provs(ws),
@@ -330,8 +461,9 @@ def masker(ws: Workspace):  # noqa: ANN201
     from echo.mask.techniques import get_key
     from echo.runtime.masking import FieldMasker
 
+    manifest = load_manifest(mask_manifest_path(ws))
     return FieldMasker(
-        Binds(**read_json(ws.work / "binds.json")), load_manifest(mask_manifest_path(ws)), get_key()
+        Binds(**read_json(ws.work / "binds.json")), manifest, get_key(manifest.key_env)
     )
 
 
@@ -432,6 +564,7 @@ def lease_store(ws: Workspace):  # noqa: ANN201
         from echo.runtime import baseline as B
 
         bl = current_baseline(ws)
+        table, _key = root_entity(ws)
         ok = True
         for e in lease.entities:
             r = B.reset_entity(
@@ -439,7 +572,7 @@ def lease_store(ws: Workspace):  # noqa: ANN201
                 _schema(ws),
                 ws.baselines,
                 bl,
-                f"CUSTOMER:{e.key}",
+                f"{table}:{e.key}",
                 remap_cfg(ws),
                 closure.load_associations(ws.work / "associations.yaml"),
             )
@@ -454,34 +587,35 @@ def step_register_pool(ws: Workspace) -> dict:
 
     bl = current_baseline(ws)
     store = lease_store(ws)
+    table, key = root_entity(ws)
     with echo_engine(ws).connect() as con:
-        rows = con.execute(
-            text('SELECT "CUST_ID", "FULL_NAME" FROM "CUSTOMER" ORDER BY "CUST_ID"')
-        ).all()
+        rows = con.execute(text(f'SELECT "{key}" FROM "{table}" ORDER BY "{key}"')).all()
     n = store.register_pool(
-        PROCESS,
+        ws.process,
         bl,
-        [("customer", str(k), None) for k, _ in rows],
+        [("customer", str(k), None) for (k,) in rows],
         apps_built=[a.app for a in process_map(ws).apps],
     )
-    return {"registered": n, "baseline": bl, "readiness": store.readiness(PROCESS)}
+    return {"registered": n, "baseline": bl, "readiness": store.readiness(ws.process)}
 
 
 def refresh(ws: Workspace) -> dict:
-    """Publish a new baseline while leases are held: leased customers keep their rows."""
+    """Publish a new baseline while leases are held: leased and quarantined customers keep
+    their rows (quarantined ones are waiting for inspection)."""
+    from sqlalchemy import text
+
     from echo.runtime import baseline as B
 
     store = lease_store(ws)
-    leased = sorted(store.leased_keys(PROCESS))
+    table, key = root_entity(ws)
+    kept = sorted(store.unavailable_keys(ws.process))
     bl = B.next_id(ws.baselines)
     step_baseline(ws, bl)
-    res = step_publish(ws, bl, leased=[f"CUSTOMER:{k}" for k in leased])
+    res = step_publish(ws, bl, leased=[f"{table}:{k}" for k in kept])
     with echo_engine(ws).connect() as con:
-        from sqlalchemy import text
-
-        keys = [str(k) for (k,) in con.execute(text('SELECT "CUST_ID" FROM "CUSTOMER"'))]
-    store.set_baseline(PROCESS, bl, [k for k in keys if k not in set(leased)])
-    return {"baseline": bl, "leased_kept": leased, "publish": res}
+        keys = [str(k) for (k,) in con.execute(text(f'SELECT "{key}" FROM "{table}"'))]
+    store.set_baseline(ws.process, bl, [k for k in keys if k not in set(kept)])
+    return {"baseline": bl, "leased_kept": kept, "publish": res}
 
 
 def run_all(ws: Workspace, runs: int = 5, replay_check: bool = True) -> dict:
@@ -490,6 +624,7 @@ def run_all(ws: Workspace, runs: int = 5, replay_check: bool = True) -> dict:
     from harness import db_path
     from harness.data import create_db
 
+    ws.require_harness("pipeline harness")
     get_key()  # fail early with a clear message when the key is not set
     create_db(db_path())
     out: dict = {"bundle": str(step_capture(ws, runs))}
@@ -570,6 +705,7 @@ def step_probe(
     ws: Workspace, variant: str | None = None, ports: tuple[int, int] = (5111, 5112)
 ) -> dict:
     """I-22b: probe a second harness instance standing in for UAT (fresh DB, own ports)."""
+    ws.require_harness("probing a UAT instance")
     from sqlalchemy import create_engine, text
 
     from echo.capture import probe
@@ -580,9 +716,7 @@ def step_probe(
     eng = create_engine(f"sqlite:///{uat_db.as_posix()}")
     try:
         with eng.connect() as con:
-            reserved = con.execute(
-                text("SELECT ACCT_NO FROM ACCT ORDER BY ACCT_NO LIMIT 1")
-            ).scalar()
+            reserved = con.execute(text("SELECT ACCT_NO FROM ACCT ORDER BY ACCT_NO")).first()[0]
     finally:
         eng.dispose()  # Windows keeps an open SQLite file locked
     h = start(db=uat_db, app1_port=ports[0], app2_port=ports[1], variant=variant)

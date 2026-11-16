@@ -70,9 +70,16 @@ def test_ff1_matches_nist_sp800_38g_samples_1_to_3(
 def test_ff1_round_trips_for_several_radixes_and_lengths() -> None:
     for radix in (2, 10, 16, 36):
         f = FF1(bytes(range(32)), radix)
-        for n in (7, 9, 16):
+        for n in (7, 9, 16, 24):
+            if radix**n < 1_000_000:
+                continue
             pt = "".join("0123456789abcdefghijklmnopqrstuvwxyz"[i % radix] for i in range(n))
             assert f.decrypt(f.encrypt(pt, b"tw"), b"tw") == pt
+
+
+def test_ff1_refuses_domains_below_the_nist_minimum() -> None:
+    with pytest.raises(ValueError, match="1,000,000"):
+        FF1(bytes(range(32)), 10).encrypt("12345")
 
 
 # -- key and manifest -----------------------------------------------------------------------------

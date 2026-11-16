@@ -37,8 +37,12 @@ def add(bundle: Path, kind: str, src: Path) -> Path:
     init(bundle)
     if kind == "robot_log":
         dest = bundle / "robot.log.jsonl"
+        text = src.read_text(encoding="utf-8-sig")  # tolerate a BOM on the added file
+        needs_nl = dest.exists() and dest.stat().st_size and not dest.read_bytes().endswith(b"\n")
         with dest.open("a", encoding="utf-8") as out:
-            out.write(src.read_text(encoding="utf-8"))
+            if needs_nl:  # never glue the first new line onto the last existing one
+                out.write("\n")
+            out.write(text if text.endswith("\n") else text + "\n")
     elif kind in ("netlog", "har"):
         sub = bundle / kind
         sub.mkdir(exist_ok=True)

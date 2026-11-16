@@ -4,22 +4,27 @@ MERGE by natural key in parent-to-child order (`INSERT ... ON CONFLICT DO UPDATE
 Postgres). Surrogate ids are remapped into a reserved high range (default from 9_000_000_000 per
 table) and the mapping is kept in `ECHO_ID_MAP` so the generated apps and the runtime can
 translate. Every loaded row carries `ECHO_BATCH`; rows the generated apps create carry none, which
-is how reset finds them. SQLite has no trigger switch; for engines that do, triggers are disabled
-around the load and the reconciliation statements from `reconcile.yaml` run before they go back
-on. Re-running the same baseline is a no-op by design; `dry_run` returns the plan without writing.
+is how reset finds them. The Echo DB is created by this loader, so it has no triggers of its own;
+the reconciliation statements from `reconcile.yaml` (work/<process>/reconcile.yaml) run after the
+merge. An existing Echo DB that lacks a source column fails loudly (SchemaDrift). Re-running the same baseline is a no-op by design; `dry_run` returns the plan without writing.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 
 import yaml
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, inspect, text
 
+from echo.data.extract import is_integer_type
 from echo.data.models import Schema
+from echo.util import from_jsonable, iso
 
 log = logging.getLogger(__name__)
 REMAP_BASE = 9_000_000_000
@@ -53,7 +58,7 @@ def default_remap(schema: Schema, protect: set[str]) -> dict[str, str]:
         if len(t.pk) != 1 or t.name in referenced or f"{t.name}.{t.pk[0]}" in protect:
             continue
         c = t.col(t.pk[0])
-        if c is not None and "INT" in c.type.upper():
+        if c is not None and is_integer_type(c.type):
             out[t.name] = t.pk[0]
     return out
 
@@ -70,14 +75,13 @@ def ddl(schema: Schema) -> list[str]:
             cols.append("PRIMARY KEY (" + ", ".join(f'"{k}"' for k in t.pk) + ")")
         for fk in t.fks:
             if fk.declared:
-                cols.append(
-                    f'FOREIGN KEY ("{fk.columns[0]}") REFERENCES "{fk.ref_table}" '
-                    f'("{fk.ref_columns[0]}")'
-                )
+                child = ", ".join(f'"{c}"' for c in fk.columns)
+                parent = ", ".join(f'"{c}"' for c in fk.ref_columns)
+                cols.append(f'FOREIGN KEY ({child}) REFERENCES "{fk.ref_table}" ({parent})')
         stmts.append(f'CREATE TABLE IF NOT EXISTS "{t.name}" (\n  ' + ",\n  ".join(cols) + "\n)")
     stmts.append(
         'CREATE TABLE IF NOT EXISTS "ECHO_ID_MAP" ("TBL" VARCHAR(64), "COL" VARCHAR(64),'
-        ' "SOURCE_ID" VARCHAR(64), "ECHO_ID" INTEGER, PRIMARY KEY ("TBL", "SOURCE_ID"))'
+        ' "SOURCE_ID" VARCHAR(64), "ECHO_ID" BIGINT, PRIMARY KEY ("TBL", "SOURCE_ID"))'
     )
     stmts.append(
         'CREATE TABLE IF NOT EXISTS "ECHO_BATCHES" ("BATCH_ID" VARCHAR(20) PRIMARY KEY,'
@@ -135,6 +139,28 @@ def ensure_schema(eng: Engine, schema: Schema) -> None:
     with eng.begin() as con:
         for s in ddl(schema):
             con.execute(text(s))
+    drift = schema_drift(eng, schema)
+    if drift:
+        raise SchemaDrift(
+            "the Echo DB was created from an older schema; rebuild it (delete echo_db/) or "
+            "migrate these first: " + "; ".join(drift)
+        )
+
+
+class SchemaDrift(RuntimeError):
+    pass
+
+
+def schema_drift(eng: Engine, schema: Schema) -> list[str]:
+    """Columns the source schema has that the existing Echo DB table lacks."""
+    insp = inspect(eng)
+    out = []
+    for t in schema.tables:
+        have = {c["name"] for c in insp.get_columns(t.name)}
+        missing = [c.name for c in t.columns if c.name not in have]
+        if missing:
+            out.append(f"{t.name}: {', '.join(missing)}")
+    return out
 
 
 def echo_key(table: str, pk: list, remap: dict[str, str], idmap: IdMap) -> tuple:
@@ -196,24 +222,25 @@ def load(
                 if cur is None:
                     res.inserted[tname] = res.inserted.get(tname, 0) + 1
                 elif all(_eq(cur[c], r.get(c)) for c in cols):
+                    # same values: keep the batch that first loaded them
                     res.unchanged[tname] = res.unchanged.get(tname, 0) + 1
-                    if not dry_run and cur.get(BATCH_COL) != batch_id:
-                        pass  # same values: keep the batch that first loaded them
                     continue
                 else:
                     res.updated[tname] = res.updated.get(tname, 0) + 1
                 if dry_run:
                     continue
-                params = {c: r.get(c) for c in cols}
-                params[BATCH_COL] = batch_id
                 names = cols + [BATCH_COL]
+                # Positional bind names: column names such as ORDER# or AMT$ are not valid
+                # bind parameter names.
+                params = {f"p{i}": from_jsonable(r.get(c)) for i, c in enumerate(cols)}
+                params[f"p{len(cols)}"] = batch_id
                 upd = ", ".join(f'"{c}" = excluded."{c}"' for c in names if c not in t.pk)
                 con.execute(
                     text(
                         f'INSERT INTO "{tname}" ('
                         + ", ".join(f'"{c}"' for c in names)
                         + ") VALUES ("
-                        + ", ".join(f":{c}" for c in names)
+                        + ", ".join(f":p{i}" for i in range(len(names)))
                         + ") ON CONFLICT ("
                         + ", ".join(f'"{k}"' for k in t.pk)
                         + f") DO UPDATE SET {upd}"
@@ -224,10 +251,6 @@ def load(
             for stmt in reconcile or []:
                 con.execute(text(stmt))
                 res.reconciled.append(stmt)
-            import json
-
-            from echo.util import iso
-
             con.execute(
                 text(
                     'INSERT INTO "ECHO_BATCHES" VALUES (:b, :t, :c) ON CONFLICT '
@@ -239,25 +262,22 @@ def load(
     return res
 
 
+_NUM = re.compile(r"-?\d+(\.\d+)?")
+
+
 def _eq(a: object, b: object) -> bool:
+    """Value equality for change detection. Numbers compare exactly as Decimal (never through
+    float: two 17-digit account numbers must not compare equal); everything else as text."""
     if a is None or b is None:
         return a is b
-    try:
-        return float(a) == float(b)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return str(a) == str(b)
+    sa, sb = str(a).strip(), str(b).strip()
+    if _NUM.fullmatch(sa) and _NUM.fullmatch(sb):
+        return Decimal(sa) == Decimal(sb)
+    return sa == sb
 
 
 def _has_table(eng: Engine, name: str) -> bool:
-    with eng.connect() as con:
-        return (
-            con.execute(
-                text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:n"), {"n": name}
-            ).first()
-            is not None
-            if eng.dialect.name == "sqlite"
-            else True
-        )
+    return inspect(eng).has_table(name)
 
 
 def load_reconcile(path: Path | None) -> list[str]:

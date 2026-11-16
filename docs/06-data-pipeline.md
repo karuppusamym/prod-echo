@@ -4,11 +4,17 @@ From replica schema to a loaded Echo DB. Items I-10 to I-18.
 
 ## Schema inventory (I-10)
 
-`echo data schema pull --db app1_replica` uses the SQLAlchemy inspector: tables, columns with types
+`echo --db app1_replica data schema pull` uses the SQLAlchemy inspector: tables, columns with types
 and nullability, primary keys, declared foreign keys, indexes, and candidate audit columns found by
-name (`UPDATED_AT`, `LAST_MOD_TS`, `MODIFIED_DATE`, `ROWVERSION`). Row counts via `COUNT(*)` only
-when `--counts` is given. Output: `schema/<db>.json`. The DB alias resolves to a connection string
-from the environment (`ECHO_DB_APP1_REPLICA`); no connection string is ever written to disk here.
+name (`UPDATED_AT`, `LAST_MOD_TS`, `MODIFIED_DATE`, `ROWVERSION`). Row counts via `COUNT(*)` by
+default; `--no-counts` skips them. Output: `work/<process>/schema/<alias>.json`, which later steps
+read. The alias (global `--db`) resolves to a connection string from the environment
+(`ECHO_DB_APP1_REPLICA`); no connection string is ever written to disk here. `ECHO_DB_<ALIAS>_TZ`
+(e.g. `+05:30`, default UTC) is the timezone of the replica's naive audit timestamps.
+
+Replica sessions are forced read-only: SQLite `query_only`; PostgreSQL session read-only; Oracle
+`SET TRANSACTION READ ONLY`; SQL Server requires `ApplicationIntent=ReadOnly` in the URL; other
+dialects are refused. No `LIMIT` clauses are sent to replicas (rows are fetched with `fetchmany`).
 
 ## Value binding (I-11)
 
@@ -46,12 +52,18 @@ number, a crosswalk table, or a key that is literally equal). Review checklist:
 - Seeds policy includes `referenced_by_runs`; `recent_changed` alone cannot select a customer who was
   only read.
 - Closure limits exist for every child table that can fan out.
+- `links` have no `proposed: true` left (`spec generate` marks them reviewed only on the harness).
+  `echo data extract` refuses to run while `echo data spec validate [--path file]` reports problems.
 
 ## Closure (I-14, I-15)
 
 From seed keys, breadth-first over the FK graph: parents are always pulled (an insert without its
 parent fails), children are pulled up to the per-table limit, cycles are broken by a visited set
-keyed on (table, pk). Relations come from declared FKs plus `associations.yaml`:
+keyed on (table, pk). Rows have a role: **owned** (the seed, its descendants, rows of the spec's
+entity tables and crosswalk tables) or **ancestor** (shared parents such as a branch: pulled, never
+expanded); `baselines/<B>/entity_rows.json` entries are `[table, pk, role]`. A per-seed cap
+`max_rows=5000` is reported as truncated `_max_rows`; a table without a primary key raises
+`NoPrimaryKey`. Relations come from declared FKs plus `associations.yaml`:
 
 ```yaml
 app: app2
@@ -61,8 +73,11 @@ associations:
 
 The app-load trace diff (I-15) finds what is missing: record the tables the app reads when it opens
 one customer (harness: SQLAlchemy echo; production: an Extended Events session or an Oracle SQL
-trace exported to a file, imported with `echo data trace import`), compare with the closure's table
-set, and print `read_but_not_in_closure`. Each such table becomes a line in `associations.yaml`.
+trace exported to a file, imported with `echo data trace import --path <file> [--fmt statements]`),
+compare with the closure's table set, and print `read_but_not_in_closure`. Each such table becomes a
+line in `associations.yaml`. `echo data trace diff` records App2 itself on the harness and accepts
+the proposed associations; elsewhere it reads `work/<process>/traces/*.sql` (one statement per line)
+and writes proposals to `associations.proposed.yaml` for a human to review and merge.
 
 ## Extractor interface (I-16)
 
@@ -78,6 +93,12 @@ call) and `run` waits for Synapse's output location and reads it. The pipeline n
 one ran. If Synapse cannot do incremental extraction by watermark, the fallback is a scheduled full
 subset rebuild; subsets are small by construction.
 
+`OwnExtractor` reuses the rows the closure already read; any re-read is batched with `IN` lists of at
+most 500. The Synapse job SQL uses standard single-quoted literals in chunks of at most 500, with
+composite keys as OR-ed AND groups. Unmasked extracted rows are held in memory only; nothing
+unmasked is written to disk. The Synapse job format is still a placeholder until agreed (open
+question 9).
+
 ## Masking (I-17)
 
 `mask(row: dict, manifest: MaskManifest, key: bytes) -> dict`. Techniques:
@@ -87,14 +108,20 @@ subset rebuild; subsets are small by construction.
 | ssn, tin | FF1 on 9 digits, retry with incremented tweak until the result avoids invalid ranges (000/666/9xx area, 00 group, 0000 serial) | format, validity |
 | card, account numbers that apps Luhn-check | FF1 on body, recompute check digit | format, Luhn |
 | first_name, last_name, address line 1 | dictionary substitution indexed by `HMAC(key, value) mod N` | realistic, same input same output |
-| date (DOB, open dates) | per-entity shift: `HMAC(key, entity_key) mod 731 − 365` days, applied to every date on that entity | intervals, ordering |
+| date (DOB, open dates) | per-entity shift: `HMAC(key, entity_key) mod 731 − 365` days (0 becomes +366), applied to every date on that entity | intervals, ordering |
 | phone | keep area code, FF1 the 7-digit subscriber part | format, state coherence |
-| email | `base32(HMAC(key, local))[:12]@test.invalid` | syntax, non-deliverable |
+| email | `base32(HMAC(key, whole address))[:12]@test.invalid` | syntax, non-deliverable |
+| full name | `full_name`: consistent with the first/last name columns of the same row | realism |
+| declared unmasked | `keep`: personal-looking column listed on purpose | app behavior |
 | everything else | untouched | app behavior |
 
-One key per environment from `ECHO_MASK_KEY`. Rotation means a full rebuild; two live keys are not
-supported. FF1 implementation: a reviewed library or a thin wrapper around Bouncy Castle's
-`FPEEngine` behind a service if the crypto team prefers Java; the choice is an ADR when I-17 starts.
+One key per environment from `ECHO_MASK_KEY` (the manifest's `key_env` can name another variable);
+at least 16 bytes. Rotation means a full rebuild; two live keys are not supported. FF1 is
+implemented in-process over `cryptography`'s AES (ADR-009); it refuses domains below 1,000,000
+(NIST), and `ff1_luhn` needs 7 or more digits. Baseline build gate: `review.approved_by` is required,
+and extracted columns that look like personal data but are not in the manifest block the build when
+`unclassified_policy: block` (the default); list them with `technique: keep` to allow them
+(docs/04).
 
 Sanitize (runs before every load): every manifest column differs from its source value; FK join
 counts unchanged; SSN/Luhn validators pass on 100 % of rows; cross-app join on masked identity
@@ -105,8 +132,11 @@ prove masking (a masked SSN has the same shape as a real one), so it is not one 
 
 Parent-to-child order from the FK graph. `MERGE` (`INSERT … ON CONFLICT` on Postgres/SQLite) keyed
 on the natural key. Surrogate IDs remapped into a reserved range (`≥ 9_000_000_000` or per-table
-configured); the mapping is stored in `id_map` so the generated apps and the runtime can translate.
-Every row carries `batch_id`; if the DDL cannot take a column, a side table `ECHO_OWNED(table, pk,
-batch_id)`. Triggers disabled for the load, then reconciliation hooks declared per app
-(`reconcile.yaml`: SQL statements to recompute derived columns or indexes), then triggers back on.
-`--dry-run` prints the plan. Re-running the same baseline is a no-op by design.
+configured); the mapping is stored in the table `ECHO_ID_MAP(TBL, COL, SOURCE_ID, ECHO_ID)`
+(`ECHO_ID` is BIGINT) so the generated apps and the runtime can translate. Every row carries an
+`ECHO_BATCH` column holding the batch id; loaded batches are listed in `ECHO_BATCHES`. The Echo DB
+DDL includes composite FKs; the loader raises `SchemaDrift` if an existing Echo DB lacks a source
+column. Values are compared exactly (`Decimal`). There are no triggers in the Echo DB; reconciliation
+hooks per app (`work/<process>/reconcile.yaml`: SQL statements to recompute derived columns or
+indexes) run after the load. `--dry-run` prints the plan. Re-running the same baseline is a no-op by
+design.

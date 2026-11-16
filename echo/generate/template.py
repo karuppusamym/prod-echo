@@ -23,7 +23,7 @@ from html import escape
 
 from echo.generate import html as H
 from echo.generate.context import sort_key
-from echo.util import normalize_value
+from echo.util import loose_value, normalize_value
 
 log = logging.getLogger(__name__)
 SLOT_RE = re.compile(r"\{(#count:)?([A-Z0-9_]+)\.?([A-Z0-9_]*)(?:@(\d+))?\}")
@@ -34,7 +34,7 @@ def normalize_dom(root: H.Node) -> H.Node:
     def walk(n: H.Node) -> None:
         keep = []
         for c in n.children:
-            if c.tag == "script":
+            if c.tag in ("script", "#comment"):  # comments can carry captured values too
                 continue
             if c.tag == "link" and (c.get("as") == "script" or c.get("rel") == "modulepreload"):
                 continue
@@ -108,7 +108,11 @@ def bind_tree(root: H.Node, ctx: dict[str, list[dict]]) -> dict:
             elif DATA_LIKE.search(txt) and len(txt) < 80:
                 unbound.append({"element": _path(el), "text": txt})
         attrs = {}
-        for name in ("href", "value", "action", "src", "title", "aria-label", "data-id"):
+        names = ["href", "value", "action", "src", "title", "aria-label", "placeholder", "alt"]
+        names += [
+            a for a, _v in el.attrs if a.startswith("data-") and not a.startswith("data-echo")
+        ]
+        for name in names:
             v = el.get(name)
             if not v or el.tag == "option":
                 continue
@@ -367,36 +371,57 @@ def render(template_html: str, ctx: dict[str, list[dict]]) -> str:
 
 
 def literal_values(ctx: dict[str, list[dict]], min_len: int = 4) -> set[str]:
-    out = set()
-    for rows in ctx.values():
+    return set(literal_sources(ctx, min_len))
+
+
+def literal_sources(ctx: dict[str, list[dict]], min_len: int = 4) -> dict[str, str]:
+    """value -> 'TABLE.COLUMN' it came from (first seen)."""
+    out: dict[str, str] = {}
+    for table, rows in ctx.items():
         for r in rows:
             for c, v in r.items():
                 if v is None or c == "ECHO_BATCH":
                     continue
                 s = str(v).strip()
                 if len(s) >= min_len:
-                    out.add(s)
+                    out.setdefault(s, f"{table}.{c}")
     return out
+
+
+LOOSE_MIN = 6  # punctuation-insensitive matching only for values long enough to be specific
 
 
 def leakage(
     rendered: str, captured_ctx: dict[str, list[dict]], other_ctx: dict[str, list[dict]]
 ) -> list[str]:
-    """Captured-record values still present in output rendered for another record."""
-    text_ = rendered.upper()
-    allowed = {s.upper() for s in literal_values(other_ctx, 1)}
-    # Fixed vocabulary of the app (select options) is UI, not record data.
+    """Columns whose captured-record value is still present in output rendered for another
+    record. Returns 'TABLE.COLUMN' names, never the values themselves (they are customer data).
+
+    Matching is exact (case-insensitive) and also punctuation-insensitive for longer values, so a
+    phone stored as 5551234567 is caught when shown as (555) 123-4567."""
     tree = H.parse(rendered)
+    text_ = rendered.upper()
+    loose_text = loose_value(H.serialize(tree)) + loose_value(_visible_text(tree))
+    allowed = {s.upper() for s in literal_values(other_ctx, 1)}
+    allowed_loose = {loose_value(s) for s in allowed}
+    # Fixed vocabulary of the app (select options) is UI, not record data.
     for o in tree.elements():
         if o.tag == "option":
             allowed |= {(o.get("value") or "").upper(), o.text_content().strip().upper()}
-    leaks = []
-    for v in sorted(literal_values(captured_ctx)):
+    leaks: set[str] = set()
+    for v, src in sorted(literal_sources(captured_ctx).items()):
         u = v.upper()
         if u in allowed or u.replace(" ", "+") in allowed:
             continue
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}T.*", v):
             continue  # audit timestamps are not shown on screens
+        lv = loose_value(v)
         if u in text_ or escape(u) in text_:
-            leaks.append(v)
-    return leaks
+            leaks.add(src)
+        elif len(lv) >= LOOSE_MIN and lv not in allowed_loose and lv in loose_text:
+            leaks.add(src)
+    return sorted(leaks)
+
+
+def _visible_text(tree: H.Node) -> str:
+    return " ".join(e.text_content() for e in tree.elements() if not e.element_children())

@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import defaultdict
+from datetime import UTC, datetime, tzinfo
 
 from sqlalchemy import Engine, text
 
@@ -76,15 +77,18 @@ def _probe(eng: Engine, t: Table, col: str, value: str) -> dict | None:
     keys = ", ".join(f'"{k}"' for k in (t.pk or [col]))
     audit = f', "{t.audit_columns[0]}"' if t.audit_columns else ""
     order = f' ORDER BY "{t.audit_columns[0]}" DESC' if t.audit_columns else ""
-    sql = f'SELECT {keys}{audit} FROM "{t.name}" WHERE {cond}{order} LIMIT 1'
+    # No LIMIT clause (not portable to Oracle < 12c / SQL Server): read one row off the cursor.
+    sql = f'SELECT {keys}{audit} FROM "{t.name}" WHERE {cond}{order}'
     with eng.connect() as con:
         row = con.execute(text(sql), params).mappings().first()
     return dict(row) if row else None
 
 
-def _in_window(audit: str, step_ts: str) -> bool:
+def _in_window(audit: object, step_ts: str, tz: tzinfo = UTC) -> bool:
+    """Audit timestamps are read in the source DB's timezone (ECHO_DB_<ALIAS>_TZ)."""
     try:
-        a, t = to_ms(audit), to_ms(step_ts)
+        a = to_ms(audit if isinstance(audit, datetime) else str(audit), tz)
+        t = to_ms(step_ts)
     except ValueError:
         return False
     return t - 5_000 <= a <= t + 180_000
@@ -103,7 +107,9 @@ def collect_values(traces: list[BotTrace]) -> dict[str, dict]:
     return vals
 
 
-def bind(eng: Engine, schema: Schema, traces: list[BotTrace], alias: str) -> Binds:
+def bind(
+    eng: Engine, schema: Schema, traces: list[BotTrace], alias: str, tz: tzinfo = UTC
+) -> Binds:
     out: list[Bind] = []
     child_copies = {
         (t.name, fk.columns[0]): (fk.ref_table, fk.ref_columns[0])
@@ -121,7 +127,7 @@ def bind(eng: Engine, schema: Schema, traces: list[BotTrace], alias: str) -> Bin
                 if row is None:
                     continue
                 audit_val = row.pop(t.audit_columns[0], None) if t.audit_columns else None
-                if audit_val and run.get("ts") and _in_window(str(audit_val), run["ts"]):
+                if audit_val and run.get("ts") and _in_window(audit_val, run["ts"], tz):
                     written[(t.name, col)] += 1
                 hits[(t.name, col)].append(
                     Evidence(

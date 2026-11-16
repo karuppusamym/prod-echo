@@ -51,11 +51,37 @@ def _out(obj: object) -> None:
 
 
 @app.callback()
-def _main(verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False) -> None:
+def _main(
+    verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
+    process: Annotated[
+        str | None, typer.Option(help="process name; work/<process>/ (default harness_loan)")
+    ] = None,
+    db: Annotated[
+        str | None,
+        typer.Option(help="replica alias; connection from ECHO_DB_<ALIAS> (default harness)"),
+    ] = None,
+    xaml: Annotated[
+        Path | None, typer.Option(help="UiPath project folder (default: the harness project)")
+    ] = None,
+    mask_manifest: Annotated[
+        Path | None, typer.Option(help="mask manifest approved by the data owner")
+    ] = None,
+) -> None:
+    """Global options choose what the steps run on; the defaults are the local harness."""
+    import os
+
     logging.basicConfig(
         level=logging.INFO if verbose else logging.WARNING,
         format="%(levelname)s %(name)s: %(message)s",
     )
+    for env, val in (
+        ("ECHO_PROCESS", process),
+        ("ECHO_DB_ALIAS", db),
+        ("ECHO_XAML_DIR", xaml),
+        ("ECHO_MASK_MANIFEST", mask_manifest),
+    ):
+        if val is not None:
+            os.environ[env] = str(val)
 
 
 # ---------------------------------------------------------------- harness
@@ -282,14 +308,15 @@ def analyze_behaviors() -> None:
 @data.command("schema")
 def data_schema(
     verb: Annotated[str, typer.Argument(help="pull")] = "pull",
-    db: str = "harness",
-    counts: bool = True,
+    counts: Annotated[bool, typer.Option(help="COUNT(*) per table (--no-counts skips)")] = True,
 ) -> None:
-    """echo data schema pull --db <alias>: tables, keys, audit columns (read-only)."""
+    """echo [--db <alias>] data schema pull: tables, keys, audit columns, read-only. Writes
+    work/<process>/schema/<alias>.json."""
     from echo.data import db as dbm
     from echo.data import schema
     from echo.util import write_json
 
+    db = _ws().db
     sc = schema.pull(dbm.engine(db), db, counts=counts)
     write_json(_ws().work / "schema" / f"{db}.json", sc.model_dump())
     _out(
@@ -378,7 +405,7 @@ def data_closure(
     t, c, v = seed.split(":", 2)
     assoc = closure.load_associations(ws.work / "associations.yaml") if with_associations else None
     res = closure.closure(
-        db.engine("harness"), _schema(ws), [(t, c, int(v) if v.isdigit() else v)], assoc
+        db.engine(ws.db), _schema(ws), [(t, c, int(v) if v.isdigit() else v)], assoc
     )
     _out({"counts": res.counts(), "truncated": res.truncated})
 
@@ -487,7 +514,11 @@ def generate_deploy(target: PathArg) -> None:
 
 # ---------------------------------------------------------------- runtime
 @runtime.command("serve")
-def runtime_serve(port: int = 5300) -> None:
+def runtime_serve(
+    port: int = 5300,
+    app1_url: str = "http://127.0.0.1:5201",
+    app2_url: str = "http://127.0.0.1:5202",
+) -> None:
     """Runtime API: lease / release / readiness over the current baseline's pool."""
     import uvicorn
 
@@ -499,9 +530,7 @@ def runtime_serve(port: int = 5300) -> None:
     uvicorn.run(
         create_app(
             lease_store(ws),
-            apps={
-                "harness_loan": {"app1": "http://127.0.0.1:5201", "app2": "http://127.0.0.1:5202"}
-            },
+            apps={ws.process: {"app1": app1_url, "app2": app2_url}},
         ),
         host="127.0.0.1",
         port=port,

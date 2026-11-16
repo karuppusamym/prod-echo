@@ -15,6 +15,9 @@ ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 _ROUNDS = 10
 
 
+MIN_DOMAIN = 1_000_000  # NIST SP 800-38G Rev. 1 minimum radix**minlen
+
+
 class FF1:
     """FF1 cipher for a fixed AES key (16, 24 or 32 bytes) and radix (2..36)."""
 
@@ -55,8 +58,11 @@ class FF1:
         x = x.lower()
         if len(x) < 2:
             raise ValueError("FF1 input must have at least 2 numerals")
-        if self.radix ** len(x) < 100:
-            raise ValueError("FF1 domain radix**len must be at least 100")
+        if self.radix ** len(x) < MIN_DOMAIN:
+            raise ValueError(
+                "FF1 domain radix**len must be at least 1,000,000 (NIST SP 800-38G Rev. 1); "
+                "small domains are trivially enumerable"
+            )
         bad = [c for c in x if c not in self._alphabet]
         if bad:
             raise ValueError(f"FF1 input has numerals outside radix {self.radix}")

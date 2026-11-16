@@ -225,12 +225,8 @@ def _other_root_rows(inp: Inputs, root: dict, captured: list[dict]) -> list[dict
     seen = {str(r.get(col)) for r in captured}
     with inp.echo.connect() as con:
         try:
-            rows = [
-                dict(r)
-                for r in con.execute(
-                    text(f'SELECT * FROM "{tbl}" ORDER BY "{col}" DESC LIMIT 20')
-                ).mappings()
-            ]
+            res = con.execute(text(f'SELECT * FROM "{tbl}" ORDER BY "{col}" DESC'))
+            rows = [dict(r) for r in res.mappings().fetchmany(20)]
         except Exception:  # noqa: BLE001 - table may not be loaded (write side)
             return []
     other = next((r for r in rows if str(r.get(col)) not in seen), None)
@@ -435,7 +431,7 @@ def build_app(
                 "template": f"screens/{sdef.name}.html",
                 "captured_from": {
                     "screen": base_entry["n"],
-                    "url": base_entry["url"],
+                    "path": pattern,  # no record ids or query values in the package
                     "initial_state_from": load_entry["n"],
                 },
             }
@@ -443,7 +439,9 @@ def build_app(
     leaks = {k: v for k, v in leak_report.items() if v}
     inp.report[f"{app}.leakage"] = leak_report
     if leaks and not allow_leaks:
-        raise LeakageError(f"{app}: captured values leak into other records: {leaks}")
+        raise LeakageError(
+            f"{app}: values of these captured columns leak into other records: {leaks}"
+        )
     tmpl_hash = hashlib.sha256("".join(hashes[k] for k in sorted(hashes)).encode()).hexdigest()
     version = f"{capture_date.replace('-', '')}-{tmpl_hash[:8]}"
     dist = Path(out_root) / app / version

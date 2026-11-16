@@ -43,7 +43,7 @@ docs/                     problem, architecture, plan, decisions, risks
   04-data-contracts.md    evidence bundle, process map, subset spec, provenance map, mask manifest
   05-capture-tools.md     NetLog, CDP/HAR recorder, screen capture, robot logs, XAML
   06-data-pipeline.md     schema inventory, binding, closure, Synapse interface, masking, loader
-  07-app-generator.md     templates, read wiring, write wiring, packaging
+  07-app-generator.md     templates, server-rendered read/write wiring, packaging
   08-execution-and-parity.md  runtime API, leases, baselines, parity comparison
   09-risks-and-open-questions.md
   adr/                    one file per decision (ADR-001 ...)
@@ -52,7 +52,12 @@ specs/                    example files for every contract in docs/04
 harness/                  local fake apps + fake bot (built in item I-01)
 echo/                     the Python package; one subpackage per area
   capture/ analyze/ data/ mask/ generate/ runtime/ cli.py
+  pipeline.py             the step functions behind the CLI and `echo pipeline harness`
+  util.py                 paths (ECHO_HOME), JSON/JSONL helpers
+scripts/                  refresh_fixtures.py (regenerates tests/fixtures/harness_bundle)
 tests/                    pytest; fixtures come from harness runs checked in under tests/fixtures
+.github/workflows/ci.yml  lint, fast tests, then browser tests
+uat/ bundles*/ runs*/ work/ echo_db/ generated_apps/   generated output, not source
 .claude/commands/         slash commands for Claude Code (see below)
 ```
 
@@ -63,7 +68,8 @@ tests/                    pytest; fixtures come from harness runs checked in und
   (SQLite in the harness; Oracle / SQL Server / DB2 dialects behind the same interface).
 - Browser work uses Playwright. The CDP recorder attaches to an **existing** Chrome/Edge over the
   DevTools protocol; it never launches its own browser outside the harness.
-- Generated apps are static HTML + JS served with a small FastAPI data service over the Echo DB.
+- Generated apps are static templates rendered by a small FastAPI data service over the Echo DB,
+  plus one generic behavior script (ADR-008, ADR-010).
 - No Airflow, Temporal, Kafka, Docker-compose sprawl, or ORM-heavy layers until an item's DoD
   cannot be met without one, and then only with an ADR.
 
@@ -76,6 +82,9 @@ uv run pytest                 tests (fast; no network, no browsers unless marked
 uv run pytest -m browser      tests that drive the harness in a real Chromium
 uv run echo harness up        start both fake apps on localhost
 uv run echo harness bot       run the fake bot once; writes a Verbose-shaped log and a capture bundle
+uv run echo pipeline harness  the whole chain on the harness (needs ECHO_MASK_KEY, 16+ bytes)
+uv run echo capture probe     optional UAT probing on the harness (I-22b)
+uv run echo --db <alias> --process <name> --xaml <dir> data bind   global options pick what steps run on
 uv run ruff check . && uv run ruff format --check .
 ```
 

@@ -21,7 +21,14 @@ it was captured. Algorithm:
 5. Leakage check: render the template for a different customer and assert no literal value of the
    captured customer remains anywhere in the output. Fail the build otherwise.
 
-Output per screen: `template.html`, `slots.json` (slot → table.column or formatter), `unbound.json`.
+The leakage check also matches punctuation-insensitively for values of 6 or more characters (phones,
+amounts); HTML comments are stripped, and `placeholder`, `alt` and `data-*` attributes are bound too.
+The failure message and `generate-report.json` name `TABLE.COLUMN`, never values.
+
+Output per screen: `screens/<screen>.html` (the template), `slots/<screen>.json` (slot →
+table.column or formatter); content the real app inserted after an XHR becomes `blocks/*.html`.
+Unbound text is computed by `template.py` and reported in `generate-report.json`; there is no
+`unbound.json` file yet (planned, not built).
 
 ## Read wiring (I-20)
 
@@ -32,9 +39,13 @@ exact, prefix or contains, and how results are ordered. Default is `contains`, c
 ordered by the column the screen shows first. Duplicate names return every match; the agent, like
 the bot, has to pick.
 
-The static package is plain HTML + a small JS module that fetches the route's JSON and fills slots.
-No framework. Pages are served under the same path structure as the captured URLs so URL-based
-selectors and NetLog comparisons stay valid.
+Slots are rendered server-side by the data service (ADR-010): the browser receives finished HTML, so
+there is no empty first paint and one renderer serves both the build's leakage check and runtime.
+The only script is the generic behavior runtime (`echo-runtime.js`). Pages are served under the same
+path structure as the captured URLs so URL-based selectors and NetLog comparisons stay valid; the
+real app's XHR endpoints answer on their captured paths with HTML blocks (not JSON). LIKE wildcards
+in search values are escaped. `app.json` stores `captured_from` as a path pattern only (no record ids
+or query values).
 
 ## Write wiring (I-21)
 
@@ -42,16 +53,22 @@ A form's submit handler posts the field values to the data service, which maps t
 provenance map: `bot_entered` columns from the POST, `app_derived` columns from a rule
 (`generated` → next value in the reserved range, `timestamp` → now, `default` → the column default,
 `computed` → a hook per column or null and flagged). The confirmation screen is rendered from the new
-row, so a generated loan number appears where the real app would show it. Validation is the DB's
-constraints plus any rule a human adds in `rules.yaml`; nothing else. This is the known limit: the
+row, so a generated loan number appears where the real app would show it. The form posts to its
+captured action path (`POST /loan`) as JSON of the strictly committed values; a non-object body gets
+400. Validation is the DB's constraints plus the client-side rules the behavior catalog learned;
+a human-written `rules.yaml` for server-side rules is planned, not built. This is the known limit: the
 generated app accepts what the real app might reject.
 
 ## Package build and deploy (I-22)
 
-`echo generate build app2` → `dist/app2/<version>/` with the static files, the data service config,
-and `VERSION.json` (capture date, template hashes, Echo baseline it was built against). `echo
-generate serve app2` runs it locally. Deploy to the execution environment is a copy plus a restart;
-the version shows in the page footer so a parity report can name it.
+`echo generate build [app2]` → `generated_apps/app2/<version>/` (version = `<capture date>-<template
+hash>`) containing `app.json` (routes, roots, blocks, forms, relations), `screens/`, `blocks/`,
+`slots/`, `behaviors.json`, `assets/`, `echo-runtime.js` and `VERSION.json` (capture date, template
+hashes, Echo baseline, source bundle, golden run). `generated_apps/<app>/CURRENT` names the version
+served. `echo generate serve` runs both apps (no argument; :5201 CRM, :5202 Core). `echo generate
+deploy <target>` copies the current packages and their `CURRENT` pointers to an
+execution-environment folder; restart `serve` there. The version shows in the page footer so a
+parity report can name it. `echo generate replay` is the fidelity gate (below).
 
 ## Behavior without the real JavaScript (I-09a, I-21a, I-22a; ADR-008)
 
@@ -59,7 +76,9 @@ The real app's scripts are never stored or served. Captured stylesheets, fonts a
 served unchanged so the screens look the same. "Behaves the same" is defined as: on the path the
 bot took, the replica's screen after each step matches the captured screen after that step.
 
-- The behavior catalog (`behaviors.json`) is inferred from before/after snapshots around each bot
+- The behavior runtime also writes `unobserved.jsonl` (under `generated_apps/logs/<app>/`) for any
+  interaction without evidence; parity reads it. The UAT probe (docs/05) widens coverage.
+- The behavior catalog (`behaviors.json`, contract in docs/04) is inferred from before/after snapshots around each bot
   action. Rule kinds are fixed: show, hide, enable, disable, set_options, format, set_value, delay,
   navigate. A behavior that does not fit a kind is listed for a human; it is not hand-coded per app.
 - The behavior runtime interprets the catalog. Inputs are strict (values count only via
@@ -78,6 +97,7 @@ Not reproduced, by design: server-side rules, and any client behavior the bot ne
 ## Re-capture on app release
 
 The generated app is a snapshot of the real app's DOM. When the real app changes, the agent passes
-here and fails in production. Until re-capture is automated, each app has an owner in
-`apps/<app>/OWNER.md` who re-runs the capture after a release; the build fails when the capture is
-older than the configured maximum age. This is listed as a risk in `docs/09`.
+here and fails in production. Until re-capture is automated, each app should have an owner who re-runs the capture
+after a release. An `apps/<app>/OWNER.md` file and a build failure when the capture is older than a
+maximum age are planned, not built (the capture date is in `VERSION.json` and the page footer). This
+is listed as a risk in `docs/09`.

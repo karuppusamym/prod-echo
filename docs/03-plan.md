@@ -13,7 +13,7 @@ item that needs it starts. Tickets are listed at the end.
 - [x] **I-00 Repo scaffold** · S
   Inputs: none. Output: `pyproject.toml` (uv, ruff, pytest, pydantic, typer, sqlalchemy, playwright),
   `echo/cli.py` with empty subcommand groups (`capture`, `analyze`, `data`, `mask`, `generate`,
-  `runtime`, `harness`), `tests/test_smoke.py`, CI config running lint and tests.
+  `runtime`, `harness`; `bundle` and `pipeline` were added later), `tests/test_smoke_and_contracts.py`, CI config running lint and tests.
   DoD: `uv run echo --help` lists the groups; `uv run pytest` passes; CI green on a fresh clone.
 
 - [x] **I-01 Local harness** · M
@@ -185,7 +185,9 @@ item that needs it starts. Tickets are listed at the end.
   checksums valid; cross-app join on masked identity holds.
   DoD: harness rows masked; same key gives identical output across two runs; App2's masked SSN equals
   App1's masked SSN for the same person; sanitize passes; a property test flips one bit of the key
-  and asserts every masked value changes.
+  and asserts every masked value changes (known limit: a date shift has only 730 values, so a
+  different key gives the same shift for about 1 in 730 entities, so the test uses fixed bit positions
+  known to have no such collision).
 
 - [x] **I-18 Echo DB loader** · M
   `MERGE` by natural key in parent-to-child order; surrogate IDs remapped into a reserved high
@@ -204,7 +206,7 @@ item that needs it starts. Tickets are listed at the end.
   value from 4471 left in the output (leakage check).
 
 - [x] **I-20 Read wiring** · M
-  Static package + FastAPI data service over the Echo DB: route per screen, query per slot, search
+  FastAPI data service over the Echo DB that renders the template slots server-side (ADR-010): route per screen, query per slot, search
   implementation per search box (exact, prefix, contains, as observed in HAR).
   DoD: harness App1 search by name returns the same result count and order as the fake app for the
   same customers; a name with duplicates returns both.
@@ -245,7 +247,7 @@ item that needs it starts. Tickets are listed at the end.
   production via the Echo DB and only behavior is taken from UAT. Before a UAT screen is trusted,
   its DOM is compared with the production capture of the same screen; on a mismatch production wins
   and the difference is reported. Read-only exploration by default; form submits only on records
-  reserved for probing. Output: additional snapshot pairs feeding I-09a, tagged `source: uat`.
+  reserved for probing. Output: additional snapshot pairs feeding I-09a, tagged `sources: ["uat"]`.
   DoD: on the harness (a second instance standing in for UAT), probing adds a validation-error rule
   the bot never triggered; a deliberately changed "UAT" screen is rejected as a version mismatch;
   the `unobserved` count for a scripted off-path agent drops after probing.
@@ -254,7 +256,7 @@ item that needs it starts. Tickets are listed at the end.
 
 - [x] **I-23 Runtime API** · M
   `POST /process/{id}/request` → leases entities, returns connection info and entity keys;
-  `POST /release`; `GET /readiness`. Leases are exclusive; a second request for a leased customer is
+  `POST /lease/{id}/release`; `GET /process/{id}/readiness`. Leases are exclusive; a second request for a leased customer is
   refused with the lease holder. SQLite-backed for the harness.
   DoD: two concurrent harness requests cannot lease the same customer; release returns the
   customer to the pool after a reset hook runs.

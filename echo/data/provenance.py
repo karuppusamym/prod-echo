@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta, tzinfo
 
 from sqlalchemy import Engine, text
 
@@ -39,19 +40,33 @@ def _window(tr: BotTrace) -> tuple[float, float]:
     return (min(ts) - 2_000, max(ts) + 30_000) if ts else (0, 0)
 
 
-def written_rows(eng: Engine, schema: Schema, lo: float, hi: float) -> dict[str, list[dict]]:
+def written_rows(
+    eng: Engine, schema: Schema, lo: float, hi: float, tz: tzinfo = UTC
+) -> dict[str, list[dict]]:
+    """Rows whose audit column falls inside [lo, hi] (epoch ms). The window is applied in SQL
+    (never a full-table read of a production replica); the exact check runs on the result."""
+    lo_dt = datetime.fromtimestamp(lo / 1000, UTC).astimezone(tz)
+    hi_dt = datetime.fromtimestamp(hi / 1000, UTC).astimezone(tz)
     out: dict[str, list[dict]] = {}
     for t in schema.tables:
         if not t.audit_columns:
             continue
         a = t.audit_columns[0]
+        if eng.dialect.name == "sqlite":  # ISO text; a one-day margin covers offset suffixes
+            params: dict = {
+                "lo": (lo_dt - timedelta(days=1)).strftime("%Y-%m-%d"),
+                "hi": (hi_dt + timedelta(days=1)).strftime("%Y-%m-%d"),
+            }
+        else:
+            params = {"lo": lo_dt.replace(tzinfo=None), "hi": hi_dt.replace(tzinfo=None)}
+        sql = f'SELECT * FROM "{t.name}" WHERE "{a}" >= :lo AND "{a}" <= :hi'
         with eng.connect() as con:
-            rows = [dict(r) for r in con.execute(text(f'SELECT * FROM "{t.name}"')).mappings()]
+            rows = [dict(r) for r in con.execute(text(sql), params).mappings()]
         hit = []
         for r in rows:
             v = r.get(a)
             try:
-                if v and lo <= to_ms(str(v)) <= hi:
+                if v and lo <= to_ms(v if isinstance(v, datetime) else str(v), tz) <= hi:
                     hit.append(r)
             except ValueError:
                 continue
@@ -66,6 +81,7 @@ def classify(
     traces: list[BotTrace],
     binds: Binds,
     before: dict[str, dict] | None = None,
+    tz: tzinfo = UTC,
 ) -> list[Provenance]:
     """`before`: optional prior images keyed 'TABLE:pk'. Returns one Provenance per written
     (app, table) per run plus a read-side entry for every bound entity that was not written."""
@@ -82,7 +98,7 @@ def classify(
             for s in tr.steps
             if s.action in ("type", "select") and s.value not in (None, "")
         }
-        for tname, rows in written_rows(eng, schema, lo, hi).items():
+        for tname, rows in written_rows(eng, schema, lo, hi, tz).items():
             t = schema.table(tname)
             assert t is not None
             app = sorted(table_apps.get(tname) or {"unknown"})[0]
@@ -90,7 +106,7 @@ def classify(
                 pk = ":".join(str(r[k]) for k in t.pk)
                 prior = (before or {}).get(f"{tname}:{pk}")
                 cols: dict[str, ColumnProvenance] = {}
-                created = _created(t, r, lo, hi)
+                created = _created(t, r, lo, hi, tz)
                 for c in t.columns:
                     v = r.get(c.name)
                     if prior is not None and normalize_value(prior.get(c.name)) == normalize_value(
@@ -111,7 +127,7 @@ def classify(
                         cols[c.name] = ColumnProvenance(
                             **{"class": "app_derived", "source": "generated"}
                         )
-                    elif TS_RE.match(str(v)) and lo <= to_ms(str(v)) <= hi:
+                    elif TS_RE.match(str(v)) and lo <= to_ms(str(v), tz) <= hi:
                         cols[c.name] = ColumnProvenance(
                             **{"class": "app_derived", "source": "timestamp"}
                         )
@@ -151,10 +167,13 @@ def classify(
     return out
 
 
-def _created(t, r: dict, lo: float, hi: float) -> bool:  # noqa: ANN001
+def _created(t, r: dict, lo: float, hi: float, tz: tzinfo = UTC) -> bool:  # noqa: ANN001
     for c in t.columns:
-        if "CREATE" in c.name.upper() and r.get(c.name) and TS_RE.match(str(r[c.name])):
-            return lo <= to_ms(str(r[c.name])) <= hi
+        v = r.get(c.name)
+        if "CREATE" not in c.name.upper() or not v:
+            continue
+        if isinstance(v, datetime) or TS_RE.match(str(v)):
+            return lo <= to_ms(v if isinstance(v, datetime) else str(v), tz) <= hi
     return False
 
 

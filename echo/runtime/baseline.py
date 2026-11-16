@@ -21,7 +21,7 @@ from echo.data import load as L
 from echo.data.closure import Relation, relations
 from echo.data.extract import ExtractPlan, OwnExtractor, RowSets
 from echo.data.models import Associations, Schema, SubsetSpec
-from echo.mask.mask import mask_rows
+from echo.mask.mask import _classify, mask_rows
 from echo.mask.models import MaskManifest
 from echo.mask.sanitize import sanitize
 from echo.util import iso, read_json, write_json
@@ -58,17 +58,30 @@ def build(
     work_dir: Path,
     spec_dir: Path | None = None,
 ) -> dict:
-    """Extract + mask + sanitize into <root>/<baseline>. Raises SanitizeFailed."""
-    if (
-        manifest.review.get("approved_by") in (None, "")
-        and manifest.review.get("unclassified_policy") == "block"
-    ):
-        raise SanitizeFailed("mask manifest is not approved by a data owner")
+    """Extract + mask + sanitize into <root>/<baseline>. Raises SanitizeFailed.
+
+    Gates, in order: a data owner approved the mask manifest; no extracted column that looks
+    like personal data is missing from the manifest (unless the policy says otherwise); sanitize
+    passes. Unmasked rows exist only in memory and in a temporary folder deleted on the way out,
+    so nothing unmasked is left on disk whether the build passes or fails."""
+    if manifest.review.get("approved_by") in (None, ""):
+        raise SanitizeFailed("mask manifest is not approved by a data owner (review.approved_by)")
     ext = OwnExtractor(src, schema, base_dir=spec_dir)
     plan = ext.plan(spec, baseline)
-    raw = ext.run(plan, Path(work_dir) / "extract" / baseline)  # stays in the design env
+    raw = ext.run(plan)
+    unclassified = unclassified_columns(raw.rows, manifest)
+    policy = manifest.review.get("unclassified_policy", "block")
+    if unclassified and policy == "block":
+        raise SanitizeFailed(
+            "columns that look like personal data are not in the mask manifest: "
+            + ", ".join(unclassified)
+            + " (classify them, or list them with technique: keep)"
+        )
+    if unclassified:
+        log.warning("unclassified personal-looking columns (policy %s): %s", policy, unclassified)
     masked = mask_rows(raw.rows, manifest, key)
     report = sanitize(raw.rows, masked, manifest, key, fks, identity)
+    raw.rows = {}  # drop the unmasked rows as soon as they are masked
     bdir = Path(root) / baseline
     write_json(bdir / "sanitize.json", report)
     if not report["passed"]:
@@ -85,9 +98,35 @@ def build(
         "entities": sorted(raw.entity_rows),
         "truncated": plan.truncated,
         "sanitize_passed": True,
+        "unclassified_columns": unclassified,
     }
     write_json(bdir / "manifest.json", m)
     return m
+
+
+def unclassified_columns(rows: dict[str, list[dict]], manifest: MaskManifest) -> list[str]:
+    """Extracted columns whose name looks like personal data but that the manifest does not
+    list (a column listed with technique `keep` counts as classified)."""
+    out = []
+    for table, rs in sorted(rows.items()):
+        cols = sorted({c for r in rs for c in r})
+        for c in cols:
+            if f"{table}.{c}" in manifest.columns:
+                continue
+            if _classify(table, c) is not None:
+                out.append(f"{table}.{c}")
+    return out
+
+
+def _members(rs: RowSets, entity: str, role: str | None = None) -> list[tuple[str, list]]:
+    """entity_rows entries are [table, pk, role]; baselines built before roles were recorded
+    have [table, pk] and count as owned."""
+    out = []
+    for e in rs.entity_rows.get(entity, []):
+        r = e[2] if len(e) > 2 else "owned"
+        if role is None or r == role:
+            out.append((e[0], e[1]))
+    return out
 
 
 def load_baseline(root: Path, baseline: str) -> tuple[RowSets, dict]:
@@ -98,7 +137,7 @@ def load_baseline(root: Path, baseline: str) -> tuple[RowSets, dict]:
 def entity_echo_keys(
     rs: RowSets, entity: str, schema: Schema, remap: dict[str, str], idmap: L.IdMap
 ) -> set[tuple[str, tuple]]:
-    return {(t, L.echo_key(t, pk, remap, idmap)) for t, pk in rs.entity_rows.get(entity, [])}
+    return {(t, L.echo_key(t, pk, remap, idmap)) for t, pk in _members(rs, entity)}
 
 
 def publish(
@@ -153,11 +192,13 @@ def reset_entity(
     rels = relations(schema, assoc)
     pks = {t.name: t.pk for t in schema.tables}
     idmap = L.IdMap(echo)
-    members = entity_echo_keys(rs, entity, schema, remap, idmap)
+    # Only the entity's own rows are walked: shared parents (ancestors) are never expanded, so
+    # another customer's run-created rows under a shared branch or product are never touched.
+    owned = {(t, L.echo_key(t, pk, remap, idmap)) for t, pk in _members(rs, entity, "owned")}
     deleted: dict[str, int] = {}
     with echo.begin() as con:
-        # rows created by the run: no batch tag, referencing a row of the entity (any depth)
-        frontier = list(members)
+        # rows created by the run: no batch tag, below a row the entity owns (any depth)
+        frontier = list(owned)
         seen = set(frontier)
         while frontier:
             table, key = frontier.pop()
@@ -176,9 +217,11 @@ def reset_entity(
                     if kid.get(L.BATCH_COL) is None:
                         _delete(con, rel.child, pks[rel.child], kk[1])
                         deleted[rel.child] = deleted.get(rel.child, 0) + 1
-                    frontier.append(kk)
+                        frontier.append(kk)
+                    elif kk in owned:
+                        frontier.append(kk)
     # Baseline rows keep source keys; the loader maps surrogates again through ECHO_ID_MAP.
-    mine = {(t, tuple(pk)) for t, pk in rs.entity_rows[entity]}
+    mine = {(t, tuple(pk)) for t, pk in _members(rs, entity)}
     rows = {
         t: [r for r in rs.rows.get(t, []) if (t, tuple(r[k] for k in pks[t])) in mine]
         for t in rs.rows
@@ -194,9 +237,10 @@ def verify_entity(
 ) -> bool:
     idmap = L.IdMap(echo)
     pks = {t.name: t.pk for t in schema.tables}
+    index = {t: {tuple(r[k] for k in pks[t]): r for r in rows} for t, rows in rs.rows.items()}
     with echo.connect() as con:
-        for t, pk in rs.entity_rows.get(entity, []):
-            src = next((r for r in rs.rows.get(t, []) if [r[k] for k in pks[t]] == list(pk)), None)
+        for t, pk in _members(rs, entity):
+            src = index.get(t, {}).get(tuple(pk))
             if src is None:
                 continue
             row = _get(con, t, pks[t], L.echo_key(t, pk, remap, idmap))

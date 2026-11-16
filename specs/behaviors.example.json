@@ -1,0 +1,47 @@
+{
+  "process": "harness_loan",
+  "screens": [
+    {
+      "app": "app2",
+      "screen": "new_loan",
+      "url_pattern": "/loan/new",
+      "rules": [
+        {
+          "id": "app2.new_loan.r1",
+          "kind": "show",
+          "trigger": {
+            "field": "#loanAmt",
+            "event": "input",
+            "condition": {"op": "gt", "bound": [20000, 30000]}
+          },
+          "target": "#cosignerRow",
+          "params": {},
+          "evidence": ["1-1794799650001", "1-1794799650002"],
+          "single_observation": false,
+          "sources": ["production"]
+        },
+        {
+          "id": "app2.new_loan.r2",
+          "kind": "format",
+          "trigger": {"field": "#ssn", "event": "input", "condition": null},
+          "target": "#ssn",
+          "params": {"mask": "###-##-####"},
+          "evidence": ["1-1794799650003"],
+          "single_observation": true,
+          "sources": ["production"]
+        }
+      ],
+      "observed": [
+        {
+          "field": "#loanAmt",
+          "event": "input",
+          "count": 2,
+          "values": ["12500"],
+          "evidence": ["1-1794799650001", "1-1794799650002"],
+          "sources": ["production"]
+        }
+      ],
+      "unclassified": []
+    }
+  ]
+}

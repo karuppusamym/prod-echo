@@ -28,6 +28,9 @@ class MaskKeyError(RuntimeError):
     """The masking key environment variable is not set (or empty)."""
 
 
+MIN_KEY_BYTES = 16
+
+
 def get_key(env: str = DEFAULT_KEY_ENV) -> bytes:
     """Read the environment's masking key. The key never lives in a file in this repo."""
     raw = os.environ.get(env)
@@ -35,6 +38,11 @@ def get_key(env: str = DEFAULT_KEY_ENV) -> bytes:
         raise MaskKeyError(
             f"masking key environment variable {env} is not set; set it to this environment's "
             "secret masking key (never commit it to a file)"
+        )
+    if len(raw.encode("utf-8")) < MIN_KEY_BYTES:
+        raise MaskKeyError(
+            f"masking key in {env} is shorter than {MIN_KEY_BYTES} bytes; use a long random "
+            "secret (for example 32 random bytes, hex encoded)"
         )
     return raw.encode("utf-8")
 
@@ -119,8 +127,8 @@ def luhn_is_valid(digits: str) -> bool:
 
 def ff1_luhn(value: str, key: bytes) -> str:
     digits = _only_digits(value)
-    if len(digits) < 3:
-        raise ValueError("ff1_luhn needs at least 3 digits (2-digit body plus check digit)")
+    if len(digits) < 7:
+        raise ValueError("ff1_luhn needs at least 7 digits (6-digit body plus check digit)")
     f = _ff1(key, "ff1_luhn")
     body = digits[:-1]
     for i in range(_MAX_TRIES):
@@ -197,8 +205,10 @@ def entity_shift(value: str, key: bytes, entity_value: str) -> str:
 
 # -- email ----------------------------------------------------------------------------------------
 def hmac_local_part(value: str, key: bytes) -> str:
-    local = value.rsplit("@", 1)[0].strip().lower()
-    mac = hmac.new(subkey(key, "hmac_local_part"), local.encode("utf-8"), hashlib.sha256).digest()
+    """The whole address (local part and domain) keys the HMAC, so jsmith@a.com and
+    jsmith@b.com stay distinct and a UNIQUE email column still loads."""
+    addr = value.strip().lower()
+    mac = hmac.new(subkey(key, "hmac_local_part"), addr.encode("utf-8"), hashlib.sha256).digest()
     return base64.b32encode(mac).decode("ascii")[:12].lower() + "@test.invalid"
 
 

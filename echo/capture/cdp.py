@@ -18,9 +18,10 @@ import hashlib
 import json
 import logging
 import mimetypes
+import re
 import time
 from pathlib import Path
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from echo.capture.screens import ScreenWriter
 from echo.util import iso_from_ms, write_json
@@ -44,8 +45,20 @@ def read_devtools_port(profile: Path, timeout_s: float = 30.0) -> int:
     raise TimeoutError(f"no DevToolsActivePort in {profile}")
 
 
+REDACTED = "[redacted]"
+# Credentials never go to disk: session cookies, auth headers, tokens, and form fields that are
+# passwords or secrets. Business values (the fields the bot types) are kept: they are the evidence.
+SECRET_HEADER = re.compile(
+    r"^(authorization|proxy-authorization|cookie|set-cookie)$|token|api-?key|secret", re.I
+)
+SECRET_PARAM = re.compile(r"pass(word|wd)?|pwd|secret|token|otp|pin$|api_?key", re.I)
+
+
 def _headers(h: dict | None) -> list[dict]:
-    return [{"name": k, "value": str(v)} for k, v in (h or {}).items()]
+    return [
+        {"name": k, "value": REDACTED if SECRET_HEADER.search(k) else str(v)}
+        for k, v in (h or {}).items()
+    ]
 
 
 class HarWriter:
@@ -139,10 +152,17 @@ class Recorder:
             "_documentURL": p.get("documentURL"),
         }
         if req.get("postData") is not None:
+            params = [
+                {"name": k, "value": REDACTED if SECRET_PARAM.search(k) else v}
+                for k, v in parse_qsl(req["postData"], keep_blank_values=True)
+            ]
+            text = req["postData"]
+            if any(p["value"] == REDACTED for p in params):
+                text = urlencode([(p["name"], p["value"]) for p in params])
             entry["request"]["postData"] = {
                 "mimeType": (req.get("headers") or {}).get("Content-Type", ""),
-                "text": req["postData"],
-                "params": [{"name": k, "value": v} for k, v in parse_qsl(req["postData"])],
+                "text": text,
+                "params": params,
             }
         har.entries[rid] = entry
         har.order.append(rid)

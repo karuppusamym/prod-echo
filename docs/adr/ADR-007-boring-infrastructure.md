@@ -7,8 +7,8 @@ The pipeline has tens of processes and runs a few times a day. The temptation is
 Kafka, or a message bus.
 
 ## Decision
-A `typer` CLI with one subcommand per step, files on disk between steps, SQLite in the harness and
-Postgres for the runtime's leases and baselines. `cron` triggers refresh. A Postgres job table with
+A `typer` CLI with one subcommand per step, files on disk between steps, SQLite for the harness and
+for the runtime's leases and baselines (Postgres is an option later if concurrency needs it). `cron` triggers refresh. A Postgres job table with
 `SELECT … FOR UPDATE SKIP LOCKED` if concurrency is ever needed.
 
 ## Consequences

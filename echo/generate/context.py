@@ -23,28 +23,19 @@ def rows_where(
     op: str = "eq",
     limit: int = MAX_ROWS,
 ) -> list[dict]:
-    if op == "contains":
-        cond, v = f'UPPER(CAST("{col}" AS TEXT)) LIKE :v', f"%{str(value).upper()}%"
-    elif op == "prefix":
-        cond, v = f'UPPER(CAST("{col}" AS TEXT)) LIKE :v', f"{str(value).upper()}%"
+    if op in ("contains", "prefix"):
+        # The search value is data, not a pattern: escape LIKE wildcards.
+        esc = str(value).upper().replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        pattern = f"%{esc}%" if op == "contains" else f"{esc}%"
+        cond, v = f"UPPER(\"{col}\") LIKE :v ESCAPE '!'", pattern
     else:
         cond, v = f'"{col}" = :v', value
     ob = (" ORDER BY " + ", ".join(f'"{c}"' for c in order)) if order else ""
-    with eng.connect() as con:
-        rs = [
-            dict(r)
-            for r in con.execute(
-                text(f'SELECT * FROM "{table}" WHERE {cond}{ob} LIMIT {int(limit)}'), {"v": v}
-            ).mappings()
-        ]
+    sql = text(f'SELECT * FROM "{table}" WHERE {cond}{ob}')
+    with eng.connect() as con:  # no LIMIT clause: read `limit` rows off the cursor (portable)
+        rs = [dict(r) for r in con.execute(sql, {"v": v}).mappings().fetchmany(limit)]
         if not rs and op == "eq" and isinstance(value, str) and value.isdigit():
-            rs = [
-                dict(r)
-                for r in con.execute(
-                    text(f'SELECT * FROM "{table}" WHERE {cond}{ob} LIMIT {int(limit)}'),
-                    {"v": int(value)},
-                ).mappings()
-            ]
+            rs = [dict(r) for r in con.execute(sql, {"v": int(value)}).mappings().fetchmany(limit)]
     return rs
 
 
@@ -91,7 +82,14 @@ def gather(
 
 
 def sort_key(r: dict, cols: list[str]) -> tuple:
-    return tuple(
-        str(r.get(k)).zfill(20) if isinstance(r.get(k), (int, float)) else str(r.get(k))
-        for k in cols
-    )
+    """Numbers order numerically (negatives and decimals included), text as text, None first."""
+    out = []
+    for k in cols:
+        v = r.get(k)
+        if v is None:
+            out.append((0, 0, ""))
+        elif isinstance(v, (int, float)) and not isinstance(v, bool):
+            out.append((1, v, ""))
+        else:
+            out.append((2, 0, str(v)))
+    return tuple(out)

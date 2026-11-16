@@ -166,7 +166,9 @@ class LeaseStore:
 
     def _expire(self, conn: sqlite3.Connection, now: str) -> list[str]:
         rows = conn.execute(
-            "SELECT lease_id FROM leases WHERE state IN ('leased', 'running') AND expires < ?",
+            # 'resetting' past expiry means the reset hook died mid-way: inspect, never reuse.
+            "SELECT lease_id FROM leases WHERE state IN ('leased', 'running', 'resetting') "
+            "AND expires < ?",
             (now,),
         ).fetchall()
         expired = [r["lease_id"] for r in rows]
@@ -267,6 +269,14 @@ class LeaseStore:
             )
         log.info("process %s now on %s; %d pool rows moved", process, baseline, len(moved))
         return moved
+
+    def unavailable_keys(self, process: str) -> set[str]:
+        """Keys a refresh must not overwrite: held by a lease, or quarantined for inspection."""
+        with self._read() as conn:
+            rows = conn.execute(
+                "SELECT key FROM pool WHERE process = ? AND state <> 'available'", (process,)
+            ).fetchall()
+        return {r["key"] for r in rows}
 
     def leased_keys(self, process: str) -> set[str]:
         """Keys currently held by a lease (any held state) for ``process``."""
