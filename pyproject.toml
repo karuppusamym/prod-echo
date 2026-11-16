@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.4", "httpx>=0.27"]
+dev = ["pytest>=8", "ruff==0.12.11", "httpx>=0.27"]
 
 [project.scripts]
 echo = "echo.cli:main"
@@ -38,7 +38,8 @@ target-version = "py311"
 extend-exclude = ["bundles", "runs", "work", "echo_db", "generated_apps"]
 
 [tool.ruff.lint]
-extend-select = ["I", "B"]
+# The defaults plus isort and bugbear, spelled out so a newer ruff cannot widen the set.
+select = ["E4", "E7", "E9", "F", "I", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
