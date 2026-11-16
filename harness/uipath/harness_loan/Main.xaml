@@ -1,0 +1,30 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="Main"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Synthetic workflow written for the harness. Mirrors harness/bot.py; not a real export. -->
+  <Sequence DisplayName="Main">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="custName" />
+      <Variable x:TypeArguments="x:String" Name="acctNo" />
+      <Variable x:TypeArguments="x:String" Name="loanNo" />
+    </Sequence.Variables>
+    <ui:ExecuteQuery DisplayName="Read work item" Sql="SELECT CUST_NAME, AMOUNT, TERM, PURPOSE FROM WORK_QUEUE WHERE STATUS = 'NEW'" />
+    <ui:InvokeWorkflowFile DisplayName="App1 get account" WorkflowFileName="App1_GetAccount.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_CustName">[custName]</InArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="out_AcctNo">[acctNo]</OutArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+    <ui:InvokeWorkflowFile DisplayName="App2 create loan" WorkflowFileName="App2_CreateLoan.xaml">
+      <ui:InvokeWorkflowFile.Arguments>
+        <InArgument x:TypeArguments="x:String" x:Key="in_AcctNo">[acctNo]</InArgument>
+        <OutArgument x:TypeArguments="x:String" x:Key="out_LoanNo">[loanNo]</OutArgument>
+      </ui:InvokeWorkflowFile.Arguments>
+    </ui:InvokeWorkflowFile>
+    <ui:ExecuteNonQuery DisplayName="Mark work item done" Sql="UPDATE WORK_QUEUE SET STATUS = 'DONE', LOAN_NO = @loanNo WHERE CUST_NAME = @custName" />
+  </Sequence>
+</Activity>

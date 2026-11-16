@@ -1,0 +1,19 @@
+<html lang="en"><head><meta charset="utf-8"><title>Core - New Loan</title>
+<link rel="stylesheet" href="/static/app2.css"></head>
+<body><header class="top"><img src="/static/logo2.svg" alt="Core" class="logo"><b>Core Banking</b></header>
+<section id="content">
+<h1>New loan</h1>
+<form id="loanForm" action="/loan" method="post">
+<input type="hidden" id="acctNo" name="acct" value="0048812231">
+<p class="for">For account <span id="forAcct">0048812231</span> · <span id="forName">JOHN SMITH</span></p>
+<div class="row"><label for="loanAmt">Loan amount</label><input id="loanAmt" name="loanAmt" type="text"></div>
+<div class="row"><label for="term">Term (months)</label><input id="term" name="term" type="text"></div>
+<div class="row"><label for="purpose">Purpose</label><select id="purpose" name="purpose">
+<option value="">-- choose --</option><option value="AUTO">Auto</option><option value="HOME">Home improvement</option><option value="PERSONAL">Personal</option></select></div>
+<div class="row"><label for="subPurpose">Sub-purpose</label><select id="subPurpose" name="subPurpose"><option value="">-- choose --</option><option value="NEW">New vehicle</option><option value="USED">Used vehicle</option></select></div>
+<div class="row" id="cosignerRow" hidden=""><label for="cosigner">Co-signer name</label><input id="cosigner" name="cosigner" type="text"></div>
+<div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
+<p id="formError" class="err" hidden=""></p>
+<button id="submit" type="submit">Submit</button>
+</form></section>
+<script src="/static/app2.js"></script></body></html>

@@ -1,0 +1,43 @@
+{
+  "LOAN": [
+    {
+      "LOAN_NO": 70000097,
+      "ACCT_NO": "0048812231",
+      "LOAN_AMT": 12500,
+      "TERM_MONTHS": 36,
+      "PURPOSE_CD": "AUTO",
+      "SUB_PURPOSE_CD": "USED",
+      "COSIGNER_NM": null,
+      "STATUS_CD": "PENDING",
+      "CREATED_TS": "2026-11-16T03:41:29.795Z",
+      "NOTES": null,
+      "UPDATED_AT": "2026-11-16T03:41:29.795Z"
+    },
+    {
+      "LOAN_NO": 70000098,
+      "ACCT_NO": "0079963328",
+      "LOAN_AMT": 30000,
+      "TERM_MONTHS": 60,
+      "PURPOSE_CD": "HOME",
+      "SUB_PURPOSE_CD": "SOLAR",
+      "COSIGNER_NM": "SAM LEE",
+      "STATUS_CD": "PENDING",
+      "CREATED_TS": "2026-11-16T03:41:38.337Z",
+      "NOTES": null,
+      "UPDATED_AT": "2026-11-16T03:41:38.337Z"
+    },
+    {
+      "LOAN_NO": 70000099,
+      "ACCT_NO": "0048812231",
+      "LOAN_AMT": 8000,
+      "TERM_MONTHS": 24,
+      "PURPOSE_CD": "PERSONAL",
+      "SUB_PURPOSE_CD": "TRAVEL",
+      "COSIGNER_NM": null,
+      "STATUS_CD": "PENDING",
+      "CREATED_TS": "2026-11-16T03:41:46.170Z",
+      "NOTES": null,
+      "UPDATED_AT": "2026-11-16T03:41:46.170Z"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+<html lang="en"><head><meta charset="utf-8"><title>Core - Search</title>
+<link rel="stylesheet" href="/static/app2.css"></head>
+<body><header class="top"><img src="/static/logo2.svg" alt="Core" class="logo"><b>Core Banking</b></header>
+<section id="content">
+<h1>Account lookup</h1>
+<div class="row"><label for="acct">Account number</label>
+<input id="acct" name="acct" type="text" maxlength="10">
+<button id="searchBtn" type="button">Find</button></div>
+<div id="spinner" class="spinner" hidden="">Loading...</div>
+<div id="details" class="details"><h2>Customer</h2><dl class="card"><dt>First name</dt><dd id="dFirst">LINDA</dd><dt>Last name</dt><dd id="dLast">NGUYEN</dd><dt>SSN</dt><dd id="dSsn">322-90-0903</dd><dt>Date of birth</dt><dd id="dDob">1951-08-18</dd><dt>Email</dt><dd id="dEmail">linda.nguyen8@example.com</dd></dl><h3>Addresses</h3><table id="addresses"><tbody><tr class="addrRow"><td class="atype">HOME</td><td class="line1">7490 MAIN LN</td><td class="city">MADISON</td><td class="state">WI</td><td class="zip">89429</td></tr></tbody></table><h3>Phones</h3><table id="phones"><tbody><tr class="phoneRow"><td class="ptype">CELL</td><td class="pnum">817-303-6800</td></tr><tr class="phoneRow"><td class="ptype">HOME</td><td class="pnum">545-226-9915</td></tr></tbody></table><h3>Accounts</h3><table id="accts"><tbody><tr class="acctRow"><td class="acct">0079963328</td><td class="atype">CHK</td></tr><tr class="acctRow"><td class="acct">0098028935</td><td class="atype">SAV</td></tr></tbody></table><a id="newLoan" href="/loan/new?acct=0079963328">New loan</a></div></section>
+<script src="/static/app2.js"></script></body></html>

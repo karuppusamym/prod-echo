@@ -1,0 +1,12 @@
+app: app2
+key_env: ECHO_MASK_KEY
+columns:
+  CUSTMAST.SSN:      {class: ssn,        technique: ff1_ssn_valid}
+  CUSTMAST.FIRST_NM: {class: first_name, technique: dict_hmac, dict: first_names_v1}
+  CUSTMAST.LAST_NM:  {class: last_name,  technique: dict_hmac, dict: last_names_v1}
+  CUSTMAST.BIRTH_DT: {class: date,       technique: entity_shift}
+  CUSTMAST.EMAIL:    {class: email,      technique: hmac_local_part}
+  ADDRESS.LINE1:     {class: address,    technique: dict_hmac, dict: streets_v1}
+  PHONE.NUMBER:      {class: phone,      technique: ff1_keep_area}
+  # Everything not listed copies through unchanged. Unclassified PII-looking columns block the load.
+review: {approved_by: null, date: null, unclassified_policy: block}

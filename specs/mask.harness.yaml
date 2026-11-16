@@ -1,0 +1,17 @@
+# Mask manifest for the local harness schema (harness/data.py). Synthetic data only.
+# The data owner ticks review.approved_by; until then the load is blocked.
+app: harness
+key_env: ECHO_MASK_KEY
+columns:
+  CUSTOMER.FULL_NAME: {class: full_name,  technique: full_name}
+  CUSTOMER.TAX_ID:    {class: ssn,        technique: ff1_ssn_valid}
+  CUSTMAST.FIRST_NM:  {class: first_name, technique: dict_hmac, dict: first_names_v1}
+  CUSTMAST.LAST_NM:   {class: last_name,  technique: dict_hmac, dict: last_names_v1}
+  CUSTMAST.SSN:       {class: ssn,        technique: ff1_ssn_valid}
+  CUSTMAST.BIRTH_DT:  {class: date,       technique: entity_shift, entity_key: CUSTMAST.CIF_NO}
+  CUSTMAST.EMAIL:     {class: email,      technique: hmac_local_part}
+  ADDRESS.LINE1:      {class: address,    technique: dict_hmac, dict: streets_v1}
+  PHONE.NUMBER:       {class: phone,      technique: ff1_keep_area}
+  LOAN.COSIGNER_NM:   {class: full_name,  technique: full_name}
+  # Everything not listed copies through unchanged. Unclassified PII-looking columns block the load.
+review: {approved_by: null, date: null, unclassified_policy: block}

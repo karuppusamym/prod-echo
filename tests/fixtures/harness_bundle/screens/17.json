@@ -1,0 +1,22 @@
+{
+  "n": 17,
+  "url": "http://127.0.0.1:5102/loan/70000099",
+  "title": "Core - Loan Confirmation",
+  "dom_hash": "sha256:a19178defe9cd97623ed99eb07447dcaf7ad5af7a469fc35b00d2e58b2506516",
+  "captured": "2026-11-16T03:41:46.404Z",
+  "png": "17.png",
+  "elements": [
+    {
+      "tag": "a",
+      "id": "newSearch",
+      "name": null,
+      "label": null,
+      "css": "#newSearch",
+      "aria": null,
+      "text": "Back to lookup",
+      "editable": false,
+      "type": null,
+      "visible": true
+    }
+  ]
+}

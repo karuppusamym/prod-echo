@@ -1,0 +1,22 @@
+{
+  "n": 10,
+  "url": "http://127.0.0.1:5101/customer/90218",
+  "title": "CRM - Customer",
+  "dom_hash": "sha256:37ebd2987c7c460c38256472265074ba669b605f0ab9e14c1c88df910f78d076",
+  "captured": "2026-11-16T03:41:32.390Z",
+  "png": null,
+  "elements": [
+    {
+      "tag": "a",
+      "id": "backLink",
+      "name": null,
+      "label": null,
+      "css": "#backLink",
+      "aria": null,
+      "text": "New search",
+      "editable": false,
+      "type": null,
+      "visible": true
+    }
+  ]
+}

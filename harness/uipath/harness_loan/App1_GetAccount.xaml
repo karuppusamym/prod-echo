@@ -1,0 +1,35 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="App1_GetAccount"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_CustName" Type="InArgument(x:String)" />
+    <x:Property Name="out_AcctNo" Type="OutArgument(x:String)" />
+  </x:Members>
+  <Sequence DisplayName="App1 get account">
+    <ui:NavigateTo DisplayName="Open CRM search" Url="http://127.0.0.1:5101/search" />
+    <ui:TypeInto DisplayName="Type customer name" Text="[in_CustName]">
+      <ui:TypeInto.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='CRM - Search' /&gt;&lt;webctrl id='custName' tag='INPUT' /&gt;" />
+      </ui:TypeInto.Target>
+    </ui:TypeInto>
+    <ui:Click DisplayName="Click search">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='CRM - Search' /&gt;&lt;webctrl id='searchBtn' tag='BUTTON' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
+    <ui:Click DisplayName="Open customer">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='CRM - Results' /&gt;&lt;webctrl tag='A' cls='open' aaname='Open' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
+    <ui:GetText DisplayName="Read account no" Value="[out_AcctNo]">
+      <ui:GetText.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='CRM - Customer' /&gt;&lt;webctrl tag='TD' cls='acct' idx='1' /&gt;" />
+      </ui:GetText.Target>
+    </ui:GetText>
+  </Sequence>
+</Activity>

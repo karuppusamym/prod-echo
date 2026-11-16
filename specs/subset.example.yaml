@@ -1,0 +1,29 @@
+process: harness_loan
+version: 2026-11-10
+apps:
+  - app: app1
+    db: harness
+    binds:
+      - {field: app1.search.name,   table: CUSTOMER, column: FULL_NAME, confidence: 0.92}
+      - {field: app1.search.acctNo, table: ACCT,     column: ACCT_NO,   confidence: 0.99}
+    entities:
+      - {name: customer, table: CUSTOMER, key: CUST_ID, side: read}
+      - {name: account,  table: ACCT,     key: ACCT_NO, side: read}
+  - app: app2
+    db: harness
+    binds:
+      - {field: app2.search.acct,      table: ACCT, column: ACCT_NO,  confidence: 0.99}
+      - {field: app2.loan_new.loanAmt, table: LOAN, column: LOAN_AMT, confidence: 0.95}
+    entities:
+      - {name: customer, table: CUSTMAST, key: CIF_NO,  side: read}
+      - {name: loan,     table: LOAN,     key: LOAN_NO, side: write, preload: never}
+links:
+  - {entity: customer, from: app1.CUSTOMER.CUST_ID, to: app2.CUSTMAST.CIF_NO, via: crosswalk, table: CUST_XREF}
+  - {entity: account,  from: app1.ACCT.ACCT_NO,     to: app2.ACCT.ACCT_NO,    via: equal}
+seeds:
+  policy: [referenced_by_runs, recent_changed]
+  window: 7d
+  max_per_app: 200
+closure:
+  associations: associations.example.yaml
+  limits: {ADDRESS: 20, PHONE: 10, ACCT: 20, LOAN: 50}

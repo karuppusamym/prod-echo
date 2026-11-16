@@ -1,0 +1,16 @@
+{
+  "app": "app2",
+  "entity": "loan",
+  "table": "LOAN",
+  "run_id": "run_20261110T140001Z_3f9a1c",
+  "columns": {
+    "LOAN_NO":    {"class": "app_derived", "source": "generated"},
+    "ACCT_NO":    {"class": "bot_entered", "field": "app2.search.acct"},
+    "LOAN_AMT":   {"class": "bot_entered", "field": "app2.loan_new.loanAmt"},
+    "TERM_MONTHS":{"class": "bot_entered", "field": "app2.loan_new.term"},
+    "PURPOSE_CD": {"class": "bot_entered", "field": "app2.loan_new.purpose"},
+    "STATUS_CD":  {"class": "app_derived", "source": "default"},
+    "CREATED_TS": {"class": "app_derived", "source": "timestamp"},
+    "NOTES":      {"class": "null"}
+  }
+}

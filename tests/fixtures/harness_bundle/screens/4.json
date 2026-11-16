@@ -1,0 +1,34 @@
+{
+  "n": 4,
+  "url": "http://127.0.0.1:5102/search",
+  "title": "Core - Search",
+  "dom_hash": "sha256:91608164b8874852cc018c6d2a2e464c2c9c9ca22991a842618a74a4c9a25677",
+  "captured": "2026-11-16T03:41:25.048Z",
+  "png": "4.png",
+  "elements": [
+    {
+      "tag": "input",
+      "id": "acct",
+      "name": "acct",
+      "label": "Account number",
+      "css": "#acct",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "id": "searchBtn",
+      "name": null,
+      "label": null,
+      "css": "#searchBtn",
+      "aria": null,
+      "text": "Find",
+      "editable": false,
+      "type": "button",
+      "visible": true
+    }
+  ]
+}

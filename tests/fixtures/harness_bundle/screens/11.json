@@ -1,0 +1,46 @@
+{
+  "n": 11,
+  "url": "http://127.0.0.1:5102/search",
+  "title": "Core - Search",
+  "dom_hash": "sha256:2da0cc186674cddda89b946f40aee7061d95e37cd06e72e85ae4846c82965071",
+  "captured": "2026-11-16T03:41:34.587Z",
+  "png": "11.png",
+  "elements": [
+    {
+      "tag": "input",
+      "id": "acct",
+      "name": "acct",
+      "label": "Account number",
+      "css": "#acct",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "id": "searchBtn",
+      "name": null,
+      "label": null,
+      "css": "#searchBtn",
+      "aria": null,
+      "text": "Find",
+      "editable": false,
+      "type": "button",
+      "visible": true
+    },
+    {
+      "tag": "a",
+      "id": "newLoan",
+      "name": null,
+      "label": null,
+      "css": "#newLoan",
+      "aria": null,
+      "text": "New loan",
+      "editable": false,
+      "type": null,
+      "visible": true
+    }
+  ]
+}

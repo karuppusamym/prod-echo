@@ -1,0 +1,50 @@
+[
+  {
+    "run_id": "run_20261116T034122Z_5317ff",
+    "job_id": "de430837-0940-4371-8ef0-ecb3b37b3124",
+    "item": {
+      "name": "JOHN SMITH",
+      "cust_id": 4471,
+      "amount": "12500",
+      "term": "36",
+      "purpose": "AUTO",
+      "sub_purpose": "USED",
+      "cosigner": "PAT KING"
+    },
+    "acct": "0048812231",
+    "ssn": "799-27-0793",
+    "loan_no": "70000097"
+  },
+  {
+    "run_id": "run_20261116T034130Z_b60acd",
+    "job_id": "2a4f13bd-c088-4a78-b586-682b28a97290",
+    "item": {
+      "name": "LINDA NGUYEN",
+      "cust_id": 90218,
+      "amount": "30000",
+      "term": "60",
+      "purpose": "HOME",
+      "sub_purpose": "SOLAR",
+      "cosigner": "SAM LEE"
+    },
+    "acct": "0079963328",
+    "ssn": "322-90-0903",
+    "loan_no": "70000098"
+  },
+  {
+    "run_id": "run_20261116T034139Z_bf7c30",
+    "job_id": "642985af-096c-4dea-82b5-515a2166d262",
+    "item": {
+      "name": "JOHN SMITH",
+      "cust_id": 4471,
+      "amount": "8000",
+      "term": "24",
+      "purpose": "PERSONAL",
+      "sub_purpose": "TRAVEL",
+      "cosigner": "ANN HILL"
+    },
+    "acct": "0048812231",
+    "ssn": "799-27-0793",
+    "loan_no": "70000099"
+  }
+]

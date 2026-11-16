@@ -1,0 +1,4 @@
+app: app2
+associations:
+  # Relations the DDL does not declare. Found by the app-load trace diff (I-15), reviewed by a human.
+  - {child: ADDRESS, column: CUST_REF, parent: CUSTMAST, column_parent: CIF_NO, inferred_from: load_trace, reviewed_by: null}

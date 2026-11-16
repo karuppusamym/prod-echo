@@ -1,0 +1,22 @@
+{
+  "run_id": "run_20261110T140001Z_3f9a1c",
+  "process": "harness_loan",
+  "masked": false,
+  "steps": [
+    {"seq": 1,  "app": "app1", "screen": "search",            "action": "type",   "field": "custName",   "value": "JOHN SMITH"},
+    {"seq": 2,  "app": "app1", "screen": "search",            "action": "click",  "field": "searchBtn"},
+    {"seq": 3,  "app": "app1", "screen": "results",           "action": "click",  "field": "open", "row": 2},
+    {"seq": 4,  "app": "app1", "screen": "customer",          "action": "read",   "field": "acct",       "value": "0048812231"},
+    {"seq": 5,  "app": "app2", "screen": "search",            "action": "type",   "field": "acct",       "value": "0048812231"},
+    {"seq": 6,  "app": "app2", "screen": "search",            "action": "click",  "field": "searchBtn"},
+    {"seq": 7,  "app": "app2", "screen": "search",            "action": "read",   "field": "dSsn",       "value": "123-45-6789"},
+    {"seq": 8,  "app": "app2", "screen": "search",            "action": "click",  "field": "newLoan"},
+    {"seq": 9,  "app": "app2", "screen": "new_loan",          "action": "type",   "field": "loanAmt",    "value": "12500"},
+    {"seq": 10, "app": "app2", "screen": "new_loan",          "action": "type",   "field": "term",       "value": "36"},
+    {"seq": 11, "app": "app2", "screen": "new_loan",          "action": "select", "field": "purpose",    "value": "AUTO"},
+    {"seq": 12, "app": "app2", "screen": "new_loan",          "action": "select", "field": "subPurpose", "value": "USED"},
+    {"seq": 13, "app": "app2", "screen": "new_loan",          "action": "type",   "field": "ssn",        "value": "123-45-6789", "redacted": true, "value_source": "har"},
+    {"seq": 14, "app": "app2", "screen": "new_loan",          "action": "click",  "field": "submit"},
+    {"seq": 15, "app": "app2", "screen": "loan_confirmation", "action": "read",   "field": "loanNo",     "value": "70000097"}
+  ]
+}

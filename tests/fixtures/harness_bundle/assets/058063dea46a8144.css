@@ -1,0 +1,10 @@
+body{font-family:Verdana,sans-serif;margin:0;background:#fff;color:#111}
+.top{background:#2f6b3a;color:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center}
+.logo{height:22px}
+#content{padding:16px}
+.row{margin:6px 0}
+.row label{display:inline-block;width:160px}
+.spinner{color:#888}
+.details{border:1px solid #9b9;padding:8px;margin-top:8px}
+.err{color:#b00}
+.ok{font-size:18px}

@@ -1,0 +1,34 @@
+{
+  "n": 1,
+  "url": "http://127.0.0.1:5101/search",
+  "title": "CRM - Search",
+  "dom_hash": "sha256:6144bb0a4bbd2e97c6f605c8d32357a6f6ed7f50383c67fbd54be05b1cbe64a5",
+  "captured": "2026-11-16T03:41:22.539Z",
+  "png": "1.png",
+  "elements": [
+    {
+      "tag": "input",
+      "id": "custName",
+      "name": "name",
+      "label": "Customer name",
+      "css": "#custName",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true
+    },
+    {
+      "tag": "button",
+      "id": "searchBtn",
+      "name": null,
+      "label": null,
+      "css": "#searchBtn",
+      "aria": null,
+      "text": "Search",
+      "editable": false,
+      "type": "submit",
+      "visible": true
+    }
+  ]
+}

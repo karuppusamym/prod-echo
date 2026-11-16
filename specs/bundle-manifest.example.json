@@ -1,0 +1,9 @@
+{
+  "session_id": "harness_20261110T140000Z",
+  "robot": "harness-bot",
+  "process": "harness_loan",
+  "started": "2026-11-10T14:00:00Z",
+  "ended": "2026-11-10T14:07:12Z",
+  "sources": {"robot_log": true, "netlog": true, "har": true, "screens": true},
+  "capture_versions": {"netlog_parser": "0.1.0", "cdp": "0.1.0", "screens": "0.1.0"}
+}

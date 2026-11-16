@@ -1,0 +1,10 @@
+{
+  "lease_id": "lease_7f3a",
+  "process": "loan_payoff_v3",
+  "baseline": "B17",
+  "entities": [{"entity": "customer", "key": "4471"}],
+  "holder": "agent-team-a/run-104",
+  "issued": "2026-11-15T14:00:01.000Z",
+  "ttl_minutes": 30,
+  "state": "leased"
+}

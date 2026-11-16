@@ -1,0 +1,88 @@
+<Activity mc:Ignorable="sap sap2010" x:Class="App2_CreateLoan"
+  xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:sap="http://schemas.microsoft.com/netfx/2009/xaml/activities/presentation"
+  xmlns:sap2010="http://schemas.microsoft.com/netfx/2010/xaml/activities/presentation"
+  xmlns:ui="http://schemas.uipath.com/workflow/activities"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <x:Members>
+    <x:Property Name="in_AcctNo" Type="InArgument(x:String)" />
+    <x:Property Name="out_LoanNo" Type="OutArgument(x:String)" />
+  </x:Members>
+  <Sequence DisplayName="App2 create loan">
+    <Sequence.Variables>
+      <Variable x:TypeArguments="x:String" Name="ssn" />
+      <Variable x:TypeArguments="x:String" Name="loanAmt" />
+    </Sequence.Variables>
+    <ui:NavigateTo DisplayName="Open Core lookup" Url="http://127.0.0.1:5102/search" />
+    <ui:TypeInto DisplayName="Type account number" Text="[in_AcctNo]">
+      <ui:TypeInto.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Search' /&gt;&lt;webctrl id='acct' tag='INPUT' /&gt;" />
+      </ui:TypeInto.Target>
+    </ui:TypeInto>
+    <ui:Click DisplayName="Click find">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Search' /&gt;&lt;webctrl id='searchBtn' tag='BUTTON' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
+    <ui:WaitUiElementAppear DisplayName="Wait for details">
+      <ui:WaitUiElementAppear.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Search' /&gt;&lt;webctrl id='newLoan' tag='A' /&gt;" />
+      </ui:WaitUiElementAppear.Target>
+    </ui:WaitUiElementAppear>
+    <ui:GetText DisplayName="Read SSN" Value="[ssn]">
+      <ui:GetText.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Search' /&gt;&lt;webctrl id='dSsn' tag='DD' /&gt;" />
+      </ui:GetText.Target>
+    </ui:GetText>
+    <ui:Click DisplayName="Click new loan">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Search' /&gt;&lt;webctrl id='newLoan' tag='A' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
+    <ui:TypeInto DisplayName="Type loan amount" Text="[loanAmt]">
+      <ui:TypeInto.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='loanAmt' tag='INPUT' /&gt;" />
+      </ui:TypeInto.Target>
+    </ui:TypeInto>
+    <ui:TypeInto DisplayName="Type term" Text="[term]">
+      <ui:TypeInto.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='term' tag='INPUT' /&gt;" />
+      </ui:TypeInto.Target>
+    </ui:TypeInto>
+    <ui:SelectItem DisplayName="Select purpose" Item="[purpose]">
+      <ui:SelectItem.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='purpose' tag='SELECT' /&gt;" />
+      </ui:SelectItem.Target>
+    </ui:SelectItem>
+    <ui:SelectItem DisplayName="Select sub-purpose" Item="[subPurpose]">
+      <ui:SelectItem.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='subPurpose' tag='SELECT' /&gt;" />
+      </ui:SelectItem.Target>
+    </ui:SelectItem>
+    <If DisplayName="Co-signer needed" Condition="[CDec(loanAmt) &gt; 25000]">
+      <If.Then>
+        <ui:TypeInto DisplayName="Type co-signer" Text="[cosigner]">
+          <ui:TypeInto.Target>
+            <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='cosigner' tag='INPUT' /&gt;" />
+          </ui:TypeInto.Target>
+        </ui:TypeInto>
+      </If.Then>
+    </If>
+    <ui:TypeInto DisplayName="Type SSN" Text="[ssn]" Private="True">
+      <ui:TypeInto.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='ssn' tag='INPUT' /&gt;" />
+      </ui:TypeInto.Target>
+    </ui:TypeInto>
+    <ui:Click DisplayName="Click submit">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='submit' tag='BUTTON' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
+    <ui:GetText DisplayName="Read loan number" Value="[out_LoanNo]">
+      <ui:GetText.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - Loan Confirmation' /&gt;&lt;webctrl id='loanNo' tag='SPAN' /&gt;" />
+      </ui:GetText.Target>
+    </ui:GetText>
+  </Sequence>
+</Activity>
