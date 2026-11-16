@@ -45,8 +45,11 @@ Severity: a missing field or wrong value fails; an extra screen or a reorder war
 `pass`, `fail` or `unverified`: a run with entries in `unobserved.jsonl` (interactions the behavior
 runtime had no evidence for) is `unverified`, never `pass`, with each one listed. The report is JSON
 (`work/<process>/parity/<bundle>.json`) and the CLI prints a text rendering, one
-`[severity] check: message` line per finding; the command exits 1 on `fail`. A side-by-side
-screenshot rendering is planned, not built.
+`[severity] check: message` line per finding; the command exits 1 on `fail`. Next to the JSON,
+`work/<process>/parity/<bundle>.html` shows each screen the bot visited with the bot's screenshot
+beside the agent's (or "not reached") and that screen's findings; other findings follow. The
+screenshots are linked from the two bundles, not copied, so the page holds no data the bundles do
+not; a screen whose visit has no screenshot (the recorder rate-limits them) says so.
 
 ## Baselines, refresh, reset (I-25)
 

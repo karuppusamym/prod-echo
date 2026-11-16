@@ -31,6 +31,8 @@ REPO = Path(__file__).resolve().parent.parent
 PROCESS = "harness_loan"  # the harness process (default)
 XAML_DIR = REPO / "harness" / "uipath" / "harness_loan"
 MASK_TEMPLATE = REPO / "specs" / "mask.harness.yaml"
+HARNESS_APPS = REPO / "harness" / "app_config"  # OWNER.md + rules.yaml for the fake apps
+DEFAULT_MAX_CAPTURE_AGE_DAYS = 90
 
 
 class HarnessOnly(RuntimeError):
@@ -60,6 +62,11 @@ class Workspace:
     def require_harness(self, what: str) -> None:
         if not self.is_harness:
             raise HarnessOnly(f"{what} drives the local fake apps and runs only with --db harness")
+
+    def app_dir(self, app: str) -> Path:
+        """The human-written folder for one app: OWNER.md, rules.yaml."""
+        p = self.root / "apps" / app
+        return HARNESS_APPS / app if self.is_harness and not p.exists() else p
 
     @property
     def work(self) -> Path:
@@ -426,10 +433,19 @@ def current_baseline(ws: Workspace) -> str | None:
     return read_json(p)["baseline"] if p.exists() else None
 
 
-def step_generate(ws: Workspace, apps: list[str] | None = None, allow_leaks: bool = False) -> dict:
+def max_capture_age_days() -> int:
+    return int(os.environ.get("ECHO_MAX_CAPTURE_AGE_DAYS", DEFAULT_MAX_CAPTURE_AGE_DAYS))
+
+
+def step_generate(
+    ws: Workspace,
+    apps: list[str] | None = None,
+    allow_leaks: bool = False,
+    max_age_days: int | None = None,
+) -> dict:
     from echo.data import closure, db
     from echo.data.db import sqlite_engine
-    from echo.generate.build import Inputs, build_app
+    from echo.generate.build import AppPolicy, Inputs, build_app
 
     pm = process_map(ws)
     inp = Inputs(
@@ -450,8 +466,14 @@ def step_generate(ws: Workspace, apps: list[str] | None = None, allow_leaks: boo
     capture_date = (read_json(manifest_path(ws.bundle)).get("started") or "")[:10]
     out = {}
     for a in apps or [x.app for x in pm.apps]:
-        dist = build_app(a, inp, ws.apps_root, capture_date, allow_leaks=allow_leaks)
+        policy = AppPolicy(
+            app_dir=ws.app_dir(a),
+            max_capture_age_days=max_capture_age_days() if max_age_days is None else max_age_days,
+            require_owner=not ws.is_harness,
+        )
+        dist = build_app(a, inp, ws.apps_root, capture_date, allow_leaks=allow_leaks, policy=policy)
         out[a] = str(dist)
+    write_json(ws.work / "unbound.json", inp.report.get("unbound", []))
     write_json(ws.work / "generate-report.json", inp.report)
     return out
 
@@ -541,8 +563,36 @@ def step_parity(
         unobserved_logs=unobserved_logs(ws) if masked else None,
         app_urls=app_urls,
     )
+    name = Path(agent_bundle).name
+    _side_by_side(ws, rep, trace or golden(ws), Path(agent_bundle), app_urls, None, name)
     write_json(ws.work / "parity" / f"{Path(agent_bundle).name}.json", rep)
     return rep
+
+
+def _side_by_side(
+    ws: Workspace,
+    rep: dict,
+    bot: BotTrace,
+    agent_bundle: Path,
+    app_urls: dict[str, str] | None,
+    agent_window: tuple[float, float] | None,
+    name: str,
+) -> None:
+    from echo.generate.replay import run_window
+    from echo.runtime import parity
+
+    pm = process_map(ws)
+    lo, hi = agent_window or (0, float("inf"))
+    out = ws.work / "parity" / f"{name}.html"
+    parity.side_by_side(
+        rep,
+        ws.bundle,
+        parity.screen_visits(ws.bundle, pm, None, *run_window(bot)),
+        agent_bundle,
+        parity.screen_visits(agent_bundle, pm, app_urls, lo, hi),
+        out,
+    )
+    rep["side_by_side"] = str(out)
 
 
 def step_parity_self(ws: Workspace) -> dict:
@@ -552,6 +602,7 @@ def step_parity_self(ws: Workspace) -> dict:
 
     g = golden(ws)
     rep = parity.compare(g, ws.bundle, process_map(ws), window=run_window(g))
+    _side_by_side(ws, rep, g, ws.bundle, None, run_window(g), "self")
     write_json(ws.work / "parity" / "self.json", rep)
     return rep
 

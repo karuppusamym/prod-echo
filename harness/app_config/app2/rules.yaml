@@ -1,0 +1,18 @@
+# Server-side rules of the fake Core app, written by hand from harness/apps.py loan_post().
+# The capture never shows these (the bot only submits valid loans), so the replica would accept
+# an amount like "abc" that the real app rejects. Field names are the posted form field names.
+app: app2
+written_by: harness team (synthetic)
+source: harness/apps.py loan_post
+forms:
+  - screen: new_loan
+    form: "#loanForm"
+    fields:
+      loanAmt:
+        required: true
+        pattern: '\d+(\.\d{1,2})?'
+        message: "Invalid: amount"
+      term:
+        required: true
+        pattern: '\d+'
+        message: "Invalid: term"

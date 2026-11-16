@@ -80,6 +80,14 @@ def _slot(hit: tuple[str, str, int]) -> str:
     return f"{{{t}.{c}}}" if i == 0 else f"{{{t}.{c}@{i}}}"
 
 
+def shape(txt: str) -> str:
+    """Letters become A/a and digits 9, punctuation stays: enough to see what kind of value
+    did not bind, without the value."""
+    return "".join(
+        "9" if c.isdigit() else ("A" if c.isupper() else "a") if c.isalpha() else c for c in txt
+    )
+
+
 def bind_tree(root: H.Node, ctx: dict[str, list[dict]]) -> dict:
     """Turn matching text/attributes into slots in place. Returns {'slots', 'unbound'}."""
     idx = value_index(ctx)
@@ -106,7 +114,8 @@ def bind_tree(root: H.Node, ctx: dict[str, list[dict]]) -> dict:
                 el.children = []
                 slots.append({"element": _path(el), "tpl": tpl})
             elif DATA_LIKE.search(txt) and len(txt) < 80:
-                unbound.append({"element": _path(el), "text": txt})
+                # The shape, not the text: the text may be a customer value.
+                unbound.append({"element": _path(el), "shape": shape(txt)})
         attrs = {}
         names = ["href", "value", "action", "src", "title", "aria-label", "placeholder", "alt"]
         names += [

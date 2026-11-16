@@ -164,3 +164,19 @@ manifest; seeds come from bind evidence; the trace diff reads exported trace fil
 harness; proposed links and associations need human review outside the harness; extraction is
 gated on the spec checklist. Tests: 123 fast (16 new in `tests/test_review_fixes.py`) plus 15
 browser. Branches: only `main` exists; nothing to merge or delete.
+
+## 2026-11-16 — The generator features the docs listed as planned
+
+Four things docs/07 and docs/08 described as "planned, not built" now exist. **Server-side rules:**
+`apps/<app>/rules.yaml` (contract `ServerRules` in `echo/generate/models.py`, example
+`specs/rules.example.yaml`) is checked against the package at build time, copied to `rules.json`,
+and enforced by the data service before the insert (400 with the real app's message); the harness
+ships `harness/app_config/app2/rules.yaml` written from the fake app's `loan_post`. **App owner and
+capture age:** `apps/<app>/OWNER.md` goes into `VERSION.json` and is required off the harness;
+`generate build` fails past `ECHO_MAX_CAPTURE_AGE_DAYS` (default 90, `--max-capture-age-days`).
+**Unbound report:** `work/<process>/unbound.json` lists text that looked like data but did not
+bind, by shape only (`Aa 99`), never the text. **Side-by-side parity:** every parity run also
+writes `work/<process>/parity/<bundle>.html` with the bot's and the agent's screenshots per screen
+and the findings, linking the bundles' PNGs rather than copying them. Tests: 134 fast (8 new in
+`tests/test_app_policy.py`) plus 15 browser. Still not code-closable: I-07..I-10, I-16, I-26 (see
+docs/10).

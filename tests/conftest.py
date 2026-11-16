@@ -18,6 +18,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "harness_bundle"
 TEST_KEY = "test-only-mask-key-not-a-secret-0002"  # literal only in tests
+# The checked-in fixture bundle has a fixed capture date; the age limit is tested on its own.
+os.environ.setdefault("ECHO_MAX_CAPTURE_AGE_DAYS", "0")
 
 
 def _set_home(path: Path) -> None:

@@ -23,6 +23,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import IntegrityError
 
 from echo.data.closure import Relation
+from echo.generate import models as GM
 from echo.generate import template as T
 from echo.generate.context import gather, rows_where
 from echo.util import append_jsonl, iso, read_json
@@ -39,6 +40,8 @@ class Replica:
         self.cfg = read_json(self.dist / "app.json")
         self.version = read_json(self.dist / "VERSION.json")
         self.behaviors = read_json(self.dist / "behaviors.json")
+        rules_p = self.dist / "rules.json"
+        self.rules: dict[str, dict] = read_json(rules_p) if rules_p.exists() else {}
         self.echo = echo
         self.rels = [Relation(**r) for r in self.cfg["relations"]]
         self.pks = self.cfg["pks"]
@@ -103,6 +106,10 @@ class Replica:
         form = next((f for f in scr["forms"] if f["selector"] == form_sel), None)
         if form is None or not form.get("write"):
             raise HTTPException(404, "no write wiring for this form")
+        try:  # the human-written server-side rules (apps/<app>/rules.yaml), before the DB
+            GM.check(self.rules.get(f"{name} {form_sel}", {}), values)
+        except GM.RuleViolation as v:
+            raise HTTPException(400, v.message) from None  # the status the real app used
         w = form["write"]
         row: dict = {}
         flagged = []

@@ -17,6 +17,7 @@ import json
 import logging
 import shutil
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
@@ -29,6 +30,7 @@ from echo.data.closure import Relation, relations
 from echo.data.load import WRITE_BASE
 from echo.data.models import Associations, Binds, Provenance, Schema
 from echo.generate import html as H
+from echo.generate import models as GM
 from echo.generate import template as T
 from echo.generate.context import gather, rows_where
 from echo.util import loose_value, read_json, to_ms, write_json
@@ -39,6 +41,49 @@ RUNTIME_JS = Path(__file__).with_name("runtime.js")
 
 class LeakageError(RuntimeError):
     pass
+
+
+class CaptureTooOld(RuntimeError):
+    pass
+
+
+class NoOwner(RuntimeError):
+    pass
+
+
+@dataclass
+class AppPolicy:
+    """What the human-written `apps/<app>/` folder and the environment say about a build."""
+
+    app_dir: Path | None = None  # holds OWNER.md and rules.yaml
+    max_capture_age_days: int = 0  # 0 = no limit
+    require_owner: bool = False
+    today: date | None = None
+
+    def owner(self) -> str | None:
+        p = self.app_dir / "OWNER.md" if self.app_dir else None
+        if not p or not p.exists():
+            return None
+        lines = [ln.strip("# ").strip() for ln in p.read_text(encoding="utf-8").splitlines()]
+        return next((ln for ln in lines if ln), None)
+
+    def rules(self) -> GM.ServerRules | None:
+        return GM.load_rules(self.app_dir / "rules.yaml") if self.app_dir else None
+
+
+def check_capture_age(app: str, capture_date: str, policy: AppPolicy) -> int | None:
+    """Days since capture; raises CaptureTooOld past the limit (re-capture after a release)."""
+    if not capture_date:
+        return None
+    today = policy.today or datetime.now(UTC).date()
+    age = (today - date.fromisoformat(capture_date)).days
+    if policy.max_capture_age_days and age > policy.max_capture_age_days:
+        raise CaptureTooOld(
+            f"{app}: the capture is {age} days old (limit {policy.max_capture_age_days}); "
+            "re-capture the app (its owner is in apps/<app>/OWNER.md) or raise the limit with "
+            "ECHO_MAX_CAPTURE_AGE_DAYS"
+        )
+    return age
 
 
 @dataclass
@@ -344,8 +389,20 @@ def write_wiring(
 
 
 def build_app(
-    app: str, inp: Inputs, out_root: Path, capture_date: str, allow_leaks: bool = False
+    app: str,
+    inp: Inputs,
+    out_root: Path,
+    capture_date: str,
+    allow_leaks: bool = False,
+    policy: AppPolicy | None = None,
 ) -> Path:
+    policy = policy or AppPolicy()
+    age = check_capture_age(app, capture_date, policy)
+    owner = policy.owner()
+    if owner is None:
+        if policy.require_owner:
+            raise NoOwner(f"{app}: no apps/{app}/OWNER.md; name who re-captures it after a release")
+        inp.report.setdefault("gaps", []).append(f"{app}: no OWNER.md")
     appdef = next(a for a in inp.pm.apps if a.app == app)
     rels = relations(inp.schema, inp.assoc)
     pks = _pks(inp.schema)
@@ -392,6 +449,7 @@ def build_app(
             (stage / fname).write_text(btxt, encoding="utf-8")
             b["template"] = fname
             block_files.append({"block": b["id"], **binfo, "loops": loops})
+            _unbound(inp, app, f"{sdef.name}.{b['id']}", binfo)
             other = _other_root_rows(
                 inp, {**b["root"], "op": "eq"}, bctx.get(b["root"]["table"], [])[:1]
             )
@@ -405,6 +463,7 @@ def build_app(
         root = detect_root(inp, base_entry["url"], pattern)
         ctx = _ctx(inp.src, inp, rels, root)
         info = T.bind_tree(page, ctx)
+        _unbound(inp, app, sdef.name, info)
         loops = T.detect_loops(page, pks)
         forms = _forms(inp, page, sdef.name, har, v_lo, v_hi + 5000, sb.rules if sb else [])
         route, params = _route(pattern)
@@ -454,6 +513,11 @@ def build_app(
     }
     write_json(stage / "behaviors.json", catalog)
     _copy_assets(inp.bundle, stage, appdef.match.get("origin"))
+    rules = policy.rules()
+    if rules is not None and rules.app != app:
+        raise ValueError(f"apps/{app}/rules.yaml says app {rules.app!r}")
+    server_rules = GM.resolve(rules, {"screens": cfg_screens}) if rules else {}
+    write_json(stage / "rules.json", server_rules)
     shutil.copyfile(RUNTIME_JS, stage / "echo-runtime.js")
     write_json(
         stage / "app.json",
@@ -479,11 +543,21 @@ def build_app(
             "baseline": inp.baseline,
             "bundle": inp.bundle.name,
             "golden_run": inp.golden.run_id,
+            "capture_age_days": age,
+            "owner": owner,
+            "server_rules": (
+                {"written_by": rules.written_by, "source": rules.source} if rules else None
+            ),
         },
     )
     stage.rename(dist)
     (Path(out_root) / app / "CURRENT").write_text(version, encoding="utf-8")
     return dist
+
+
+def _unbound(inp: Inputs, app: str, where: str, info: dict) -> None:
+    for u in info.get("unbound", []):
+        inp.report.setdefault("unbound", []).append({"app": app, "screen": where, **u})
 
 
 def _copy_assets(bundle: Path, stage: Path, origin: str | None) -> None:

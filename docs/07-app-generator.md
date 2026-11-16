@@ -27,8 +27,9 @@ The failure message and `generate-report.json` name `TABLE.COLUMN`, never values
 
 Output per screen: `screens/<screen>.html` (the template), `slots/<screen>.json` (slot →
 table.column or formatter); content the real app inserted after an XHR becomes `blocks/*.html`.
-Unbound text is computed by `template.py` and reported in `generate-report.json`; there is no
-`unbound.json` file yet (planned, not built).
+Unbound text is written to `work/<process>/unbound.json` (and `generate-report.json`): one entry
+per element with its app, screen, element path and *shape* (`Aa 99-a`: letters become A/a, digits
+9), never the text itself, which may be a customer value.
 
 ## Read wiring (I-20)
 
@@ -55,9 +56,16 @@ provenance map: `bot_entered` columns from the POST, `app_derived` columns from 
 `computed` → a hook per column or null and flagged). The confirmation screen is rendered from the new
 row, so a generated loan number appears where the real app would show it. The form posts to its
 captured action path (`POST /loan`) as JSON of the strictly committed values; a non-object body gets
-400. Validation is the DB's constraints plus the client-side rules the behavior catalog learned;
-a human-written `rules.yaml` for server-side rules is planned, not built. This is the known limit: the
-generated app accepts what the real app might reject.
+400. Validation is, in order: the human-written server-side rules in `apps/<app>/rules.yaml`, the DB's
+constraints, and the client-side rules the behavior catalog learned. `rules.yaml` (contract in
+docs/04, example `specs/rules.example.yaml`) names, per screen and form, the posted fields and their
+rules (`required`, `pattern`, `min`/`max`, `max_length`, `one_of`) with the message the real app
+shows. A person writes it from the app's spec or an SME; nothing infers it. The build checks every
+screen, form and field it names exists in the package (a stale file fails the build), copies it to
+`rules.json` and records `written_by`/`source` in `VERSION.json`; a violation returns 400 with the
+message, which the behavior runtime shows in `#formError`. The harness ships one for the fake Core
+app (`harness/app_config/app2/rules.yaml`). The known limit remains: rules nobody wrote down are not
+enforced, so the generated app may still accept what the real app rejects.
 
 ## Package build and deploy (I-22)
 
@@ -98,6 +106,9 @@ Not reproduced, by design: server-side rules, and any client behavior the bot ne
 
 The generated app is a snapshot of the real app's DOM. When the real app changes, the agent passes
 here and fails in production. Until re-capture is automated, each app should have an owner who re-runs the capture
-after a release. An `apps/<app>/OWNER.md` file and a build failure when the capture is older than a
-maximum age are planned, not built (the capture date is in `VERSION.json` and the page footer). This
-is listed as a risk in `docs/09`.
+after a release. `apps/<app>/OWNER.md` names that owner (its first non-empty line goes into
+`VERSION.json` as `owner`); outside the harness a build without it fails, on the harness it is a
+gap in the report (the harness's own are in `harness/app_config/<app>/`). `generate build` fails when the
+capture is older than `ECHO_MAX_CAPTURE_AGE_DAYS` (default 90; `--max-capture-age-days`, 0 = no
+limit) and records `capture_age_days` in `VERSION.json`. `apps/` sits under `ECHO_HOME`. This is
+listed as a risk in `docs/09`.

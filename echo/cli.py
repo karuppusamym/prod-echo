@@ -460,12 +460,27 @@ def yaml_dump(obj: object) -> str:
 # ---------------------------------------------------------------- generate
 @generate.command("build")
 def generate_build(
-    app_name: Annotated[str | None, typer.Argument()] = None, allow_leaks: bool = False
+    app_name: Annotated[str | None, typer.Argument()] = None,
+    allow_leaks: bool = False,
+    max_capture_age_days: Annotated[
+        int | None,
+        typer.Option(
+            help="fail when the capture is older (0 = no limit; default "
+            "ECHO_MAX_CAPTURE_AGE_DAYS or 90)"
+        ),
+    ] = None,
 ) -> None:
     """Build versioned packages (templates, read/write wiring, behaviors, assets)."""
     from echo.pipeline import step_generate
 
-    _out(step_generate(_ws(), [app_name] if app_name else None, allow_leaks=allow_leaks))
+    _out(
+        step_generate(
+            _ws(),
+            [app_name] if app_name else None,
+            allow_leaks=allow_leaks,
+            max_age_days=max_capture_age_days,
+        )
+    )
 
 
 @generate.command("serve")

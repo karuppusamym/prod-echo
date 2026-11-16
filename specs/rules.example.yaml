@@ -1,0 +1,20 @@
+# apps/<app>/rules.yaml: server-side rules a person writes from the app's spec or an SME session.
+# Contract: echo/generate/models.py ServerRules (docs/04). Field names are posted form field names.
+app: app2
+written_by: Core app SME
+source: Core loan origination spec v3, section 4.2
+forms:
+  - screen: new_loan
+    form: "#loanForm"        # omit to apply to every write form on the screen
+    fields:
+      loanAmt:
+        required: true
+        pattern: '\d+(\.\d{1,2})?'
+        min: 1000
+        max: 500000
+        message: "Invalid: amount"
+      term:
+        required: true
+        one_of: ["12", "24", "36", "60"]
+      cosigner:
+        max_length: 60

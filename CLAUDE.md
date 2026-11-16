@@ -49,7 +49,7 @@ docs/                     problem, architecture, plan, decisions, risks
   adr/                    one file per decision (ADR-001 ...)
   CHANGELOG.md            one paragraph per finished item
 specs/                    example files for every contract in docs/04
-harness/                  local fake apps + fake bot (built in item I-01)
+harness/                  local fake apps + fake bot (I-01); harness/app_config/<app>/ OWNER.md, rules.yaml
 echo/                     the Python package; one subpackage per area
   capture/ analyze/ data/ mask/ generate/ runtime/ cli.py
   pipeline.py             the step functions behind the CLI and `echo pipeline harness`

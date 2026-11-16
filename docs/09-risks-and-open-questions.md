@@ -8,8 +8,8 @@
 | Verbose logs omit the values we need (`Private`, exclusions) | I-08 on a real export | Parser emits `redacted`; HAR bodies cover the gap for web apps |
 | A screen variant the bot never visited is needed | I-19 | Captures run continuously; coverage grows; `unbound.json` and parity "extra screen" flag the gap |
 | Template binding cannot find a column for a displayed value | I-19 | Formatter set; human binding; literal fallback with a note |
-| Generated app accepts input the real app would reject | I-21 | Stated limit; client-side rules come from the behavior catalog and UAT probing (I-22b); a `rules.yaml` for server-side validations is planned, not built; connected-env check per release |
-| Generated app drifts from the real app on release | after I-22 | App owner re-captures after each release; a max-capture-age build failure is planned, not built |
+| Generated app accepts input the real app would reject | I-21 | Stated limit; client-side rules come from the behavior catalog and UAT probing (I-22b); server-side validations someone wrote down are enforced from `apps/<app>/rules.yaml`; unwritten ones are not; connected-env check per release |
+| Generated app drifts from the real app on release | after I-22 | App owner (`apps/<app>/OWNER.md`, required off the harness) re-captures after each release; the build fails past `ECHO_MAX_CAPTURE_AGE_DAYS` (default 90) |
 | Synapse cannot extract by closure or incremental watermark | I-16 | `OwnExtractor` fallback; full subset rebuild on a schedule |
 | Audit columns too coarse to take a pre-run closure | I-12 | Revert bot-entered fields by hand from the provenance map; note scaling limit |
 | Replica lag makes a write-side row invisible in the run window | I-12 | Widen window; classify on the next refresh; report `unclassified` rather than guess |

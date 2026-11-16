@@ -101,6 +101,7 @@ accepted.
 | `ECHO_DB_<ALIAS>_TZ` | timezone of the replica's naive audit timestamps, e.g. `+05:30` (default UTC) |
 | `ECHO_HOME` | workspace root for runs, bundles, work, Echo DB (default: the repo) |
 | `ECHO_HARNESS_ACCESS_LOG` | harness apps append every request here (tests use it) |
+| `ECHO_MAX_CAPTURE_AGE_DAYS` | `generate build` fails when the capture is older (default 90; 0 = no limit) |
 | `ECHO_PROCESS`, `ECHO_DB_ALIAS`, `ECHO_XAML_DIR`, `ECHO_MASK_MANIFEST` | the global options above |
 
 ### Ports

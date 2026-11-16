@@ -262,3 +262,27 @@ threshold; `single_observation` flags a condition seen once for human review. `s
 `["production"]`, plus `"uat"` for evidence that came from a probe. `unclassified` lists behaviors
 that fit no kind; `observed` lists every interaction the capture saw, which the behavior runtime uses
 to decide what is `unobserved`.
+
+## Server-side rules (I-21)
+
+`apps/<app>/rules.yaml`, human-written, example `specs/rules.example.yaml`, model
+`echo/generate/models.py` `ServerRules`.
+
+```yaml
+app: app2
+written_by: Core app SME
+source: Core loan origination spec v3, section 4.2
+forms:
+  - screen: new_loan
+    form: "#loanForm"          # optional: every write form on the screen
+    fields:
+      loanAmt: {required: true, pattern: '\d+(\.\d{1,2})?', min: 1000, max: 500000,
+                message: "Invalid: amount"}
+      term: {required: true, one_of: ["12", "24", "36", "60"]}
+```
+
+Fields are posted form field names (the names the write wiring maps from). Rules are checked in the
+order written: `required`, then `max_length`, `pattern` (full match), `one_of`, `min`/`max` (the
+value must be a number; thousands separators are ignored). The first broken rule rejects the submit
+with its `message`, or a generic one. Unknown screens, forms or fields fail the build. Next to it,
+`apps/<app>/OWNER.md`: free text whose first non-empty line names the app owner.
