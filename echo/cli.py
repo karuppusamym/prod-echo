@@ -209,6 +209,24 @@ def capture_netlog(path: PathArg, out: Path | None = None) -> None:
             typer.echo(r.model_dump_json())
 
 
+@capture.command("probe")
+def capture_probe(
+    variant: Annotated[
+        str | None, typer.Option(help="harness only: 'changed' = a UAT build ahead of prod")
+    ] = None,
+    rebuild: Annotated[bool, typer.Option(help="re-infer behaviors and rebuild apps")] = True,
+) -> None:
+    """I-22b: probe UAT (on the harness, a second instance) for behaviors the bot never hit."""
+    from echo import pipeline as P
+
+    ws = _ws()
+    out = P.step_probe(ws, variant=variant)
+    if rebuild:
+        out["behaviors"] = P.step_behaviors(ws)
+        out["generate"] = P.step_generate(ws)
+    _out(out)
+
+
 @har_app.command("summarize")
 def har_summarize(path: PathArg) -> None:
     """List form posts with their field names."""

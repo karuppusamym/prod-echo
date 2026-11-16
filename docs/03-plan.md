@@ -239,8 +239,7 @@ item that needs it starts. Tickets are listed at the end.
   DoD: the generated harness apps pass for all bot runs; deleting one rule from `behaviors.json`
   fails the replay with the step and element named.
 
-- [ ] **I-22b UAT behavior probing (optional; approval E)** · L
-  _Status 2026-11-15: optional; not built. Needs approval E and a second harness instance standing in for UAT._
+- [x] **I-22b UAT behavior probing (optional; approval E)** · L
   Record behavior for interactions the bots never perform by driving the real app in UAT with the
   same capture tools. Per app only: cross-app data coherence is not needed, because data comes from
   production via the Echo DB and only behavior is taken from UAT. Before a UAT screen is trusted,

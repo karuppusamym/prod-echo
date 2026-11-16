@@ -36,12 +36,15 @@ class Harness:
 
 
 def start(
-    db: Path | None = None, app1_port: int = APP1_PORT, app2_port: int = APP2_PORT
+    db: Path | None = None,
+    app1_port: int = APP1_PORT,
+    app2_port: int = APP2_PORT,
+    variant: str | None = None,
 ) -> Harness:
     db = ensure_db(Path(db or db_path()))
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
     h = Harness()
-    for app, port in ((create_app1(db), app1_port), (create_app2(db), app2_port)):
+    for app, port in ((create_app1(db), app1_port), (create_app2(db, variant), app2_port)):
         srv = make_server("127.0.0.1", port, app, threaded=True)
         t = threading.Thread(target=srv.serve_forever, daemon=True)
         t.start()

@@ -120,7 +120,22 @@ run-created rows (no batch tag) under the entity, re-materializes it from the cu
 verifies it, else quarantines. Test: B2 published while 4471 is leased leaves its row unchanged;
 after release it is reset onto B2 and leasable again.
 
+**I-22b UAT behavior probing (optional).** `echo capture probe [--variant changed]`
+(`echo/capture/probe.py`). A second harness instance with its own DB stands in for UAT. The probe
+drives it with the same capture tools on a record reserved for probing, and only for the gaps the
+catalog reports: it bisects numeric conditions inside their evidence bound and submits each posted
+form with its first field empty. Before a UAT screen is trusted, its element set is compared with
+the production capture of the same screen; on a mismatch production wins, and the screen and its
+actions are dropped and reported. Accepted pairs feed I-09a tagged `sources: ["uat"]`. A trigger
+with two outcomes gets a field-state condition, so the submit navigates only when the amount is
+filled and otherwise shows `#formError` and blocks the submit. On the harness the probe adds the
+"Loan amount is required" rule the bot never triggered, and the replica reproduces it. It also
+narrows the co-signer threshold from [20000, 30000] to [25000, 25001], which takes an off-path
+agent's unobserved count from 1 to 0. A changed "UAT" build (an extra `#rate` field) is rejected
+as a version mismatch naming the field. Fidelity replay still passes after probing. To support
+this, the harness App2 gained client-side required-amount validation and a `changed` variant.
+
 **Not done, and why.** I-07, I-08, I-09 and I-10 are done on the harness but each DoD also names a
 real artifact (a team XAML, a Verbose export, the G1 bundle, a replica); I-16 needs the Synapse
-owner's agreement; I-22b is optional and needs approval E; I-26 needs approvals A, B, C. The plan
+owner's agreement; I-26 needs approvals A, B, C. I-22b is built on the harness; probing a real UAT needs approval E. The plan
 records each as pending with what is missing.

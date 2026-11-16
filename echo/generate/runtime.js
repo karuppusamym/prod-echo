@@ -11,6 +11,7 @@
   if (!node) return;
   var B = JSON.parse(node.textContent);
   var committed = new Map();
+  var blockSubmit = false;
 
   // Same key algorithm as the capture page script, so rules address the same elements.
   function cssPath(el) {
@@ -51,6 +52,13 @@
   // returns true / false, or null when the value falls where there is no evidence
   function cond(c, value) {
     if (!c) return true;
+    if (c.field) {  // a condition on another field's committed state (e.g. required field)
+      var f = q(c.field);
+      var v = f && committed.has(f) ? String(committed.get(f)).trim() : "";
+      if (c.op === "empty") return v === "";
+      if (c.op === "not_empty") return v !== "";
+      return null;
+    }
     if (c.op === "eq") return String(value) === String(c.value);
     if (c.op === "in") return c.value.indexOf(value) >= 0 ? true : null;
     var n = num(value);
@@ -69,7 +77,11 @@
   function applyRule(r) {
     var t = r.target ? q(r.target) : null;
     if (!t) return;
-    if (r.kind === "show") setVisible(t, true);
+    if (r.params && r.params.blocks_submit) blockSubmit = true;
+    if (r.kind === "show") {
+      if (r.params && r.params.text && !t.children.length) t.textContent = r.params.text;
+      setVisible(t, true);
+    }
     else if (r.kind === "hide") setVisible(t, false);
     else if (r.kind === "enable") t.disabled = false;
     else if (r.kind === "disable") t.disabled = true;
@@ -119,7 +131,11 @@
         if (c === null) undecided = true; else if (c && !hit) hit = r;
       });
       if (hit) toApply.push(hit);
-      else if (undecided || group.every(function (r) { return r.trigger.condition; })) unknown = true;
+      // A field-state condition that does not hold is evidence too: the other outcome (e.g. the
+      // submit navigating) was observed. Value conditions with no match have no evidence.
+      else if (undecided || group.every(function (r) {
+        return r.trigger.condition && !r.trigger.condition.field;
+      })) unknown = true;
     });
     if (unknown) unobserved(el, ev, value, "condition_not_observed");
     var blocks = (B.blocks || []).filter(function (b) { return b.trigger.field === key && b.trigger.event === ev; });
@@ -176,6 +192,8 @@
     var sel = form.id ? "#" + form.id : "form";
     var spec = (B.forms || []).filter(function (f) { return f.selector === sel; })[0];
     e.preventDefault();
+    // A rule observed to stop this submit (client-side validation seen in probing) fired.
+    if (blockSubmit) { blockSubmit = false; return; }
     if (!spec) { unobserved(form, "submit", null, "form_not_observed"); return; }
     var vals = values(form);
     if (spec.method === "get") {

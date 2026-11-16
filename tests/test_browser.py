@@ -227,6 +227,88 @@ def test_an_off_path_agent_is_unverified_with_the_interaction_listed(live) -> No
     assert any(f["check"] == "unobserved" for f in rep["findings"])
 
 
+# ---------------------------------------------------------------- I-22b UAT probing
+def _unobserved_in(w, bundle: Path) -> list[dict]:  # noqa: ANN001
+    from echo import pipeline as P
+    from echo.util import read_jsonl, to_ms
+
+    m = json.loads((bundle / "manifest.json").read_text())
+    lo, hi = to_ms(m["started"]) - 2000, to_ms(m["ended"]) + 5000
+    return [u for p in P.unobserved_logs(w) for u in read_jsonl(p) if lo <= to_ms(u["ts"]) <= hi]
+
+
+def test_probing_adds_a_validation_rule_and_cuts_unobserved_interactions(live) -> None:  # noqa: ANN001
+    from playwright.sync_api import sync_playwright
+
+    from echo import pipeline as P
+
+    w, _ = live
+    cat = json.loads((w.work / "behaviors.json").read_text())
+    show = next(
+        r
+        for s in cat["screens"]
+        for r in s["rules"]
+        if r["kind"] == "show" and r["target"] == "#cosignerRow"
+    )
+    lo, hi = show["trigger"]["condition"]["bound"]
+    off_path = str(int(lo + (hi - lo) * 0.2))  # inside the uncertain band, below 25 000
+    before, _ = P.run_agent(w, wrong={"loanAmt": off_path}, label="offpath-before")
+    n_before = len(_unobserved_in(w, before.bundle))
+    assert n_before >= 1
+
+    out = P.step_probe(w)
+    assert out["rejected"] == []
+    P.step_behaviors(w)
+    P.step_generate(w)
+    cat = json.loads((w.work / "behaviors.json").read_text())
+    rules = [r for s in cat["screens"] for r in s["rules"]]
+    err = next(r for r in rules if r["target"] == "#formError")
+    assert err["kind"] == "show" and err["sources"] == ["uat"]
+    assert err["trigger"] == {
+        "field": "#submit",
+        "event": "click",
+        "condition": {"field": "#loanAmt", "op": "empty"},
+    }
+    assert all(r["evidence"] for r in rules)
+
+    after, _ = P.run_agent(w, wrong={"loanAmt": off_path}, label="offpath-after")
+    assert len(_unobserved_in(w, after.bundle)) < n_before
+
+    s = P.serve_apps(w, ports={"app1": 5231, "app2": 5232})
+    try:
+        with sync_playwright() as pw:
+            b = pw.chromium.launch()
+            pg = b.new_page()
+            pg.goto(f"{s.urls['app2']}/loan/new?acct=0048812231")
+            pg.locator("#term").press_sequentially("36")
+            pg.click("#submit")
+            pg.wait_for_selector("#formError", state="visible")
+            assert pg.inner_text("#formError") == "Loan amount is required"
+            assert pg.url.endswith("/loan/new?acct=0048812231")
+            b.close()
+    finally:
+        s.stop()
+
+
+def test_a_changed_uat_screen_is_rejected_as_a_version_mismatch(live) -> None:  # noqa: ANN001
+    from echo import pipeline as P
+
+    w, _ = live
+    out = P.step_probe(w, variant="changed", ports=(5113, 5114))
+    bad = [r for r in out["rejected"] if r["path"] == "/loan/new"]
+    assert bad and all(r["reason"] == "version mismatch with production" for r in bad)
+    assert any("rate" in x for x in bad[0]["only_in_uat"])
+
+
+def test_replay_still_passes_after_probing(live) -> None:  # noqa: ANN001
+    from echo import pipeline as P
+
+    w, _ = live
+    P.step_behaviors(w)
+    P.step_generate(w)
+    assert P.step_replay(w)["passed"]
+
+
 # ---------------------------------------------------------------- I-23 / I-25
 def test_refresh_never_touches_leased_rows_and_release_resets_onto_the_new_baseline(live) -> None:  # noqa: ANN001
     from sqlalchemy import text

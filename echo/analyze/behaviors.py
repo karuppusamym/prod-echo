@@ -19,6 +19,7 @@ from echo.analyze.models import BehaviorCatalog, ProcessMap, Rule, ScreenBehavio
 from echo.analyze.process import origin, path_pattern
 from echo.capture import cdp, screens
 from echo.capture.models import Action
+from echo.capture.probe import probe_meta
 from echo.util import loose_value, to_ms
 
 log = logging.getLogger(__name__)
@@ -39,10 +40,15 @@ def mask_pattern(value: str) -> str:
     return "".join("#" if c.isdigit() else "A" if c.isalpha() else c for c in value)
 
 
-def _screen_for(pm: ProcessMap, url: str) -> tuple[str, str, str]:
+def _screen_for(
+    pm: ProcessMap, url: str, aliases: dict[str, str] | None = None
+) -> tuple[str, str, str]:
+    """`aliases`: origin -> app for instances other than production (a UAT probe)."""
     o, pp = origin(url), path_pattern(url)
     for app in pm.apps:
-        if app.match.get("origin") and app.match["origin"] != o:
+        if (aliases or {}).get(o) == app.app:
+            pass
+        elif app.match.get("origin") and app.match["origin"] != o:
             continue
         for s in app.screens:
             if s.url_pattern and path_pattern(s.url_pattern) == pp:
@@ -72,12 +78,21 @@ def infer(bundles: list[Path], pm: ProcessMap) -> BehaviorCatalog:
     obs: dict[tuple, list[tuple[Action, dict, dict]]] = defaultdict(list)
     screen_meta: dict[tuple, dict] = {}
     har_by_action: dict[str, list[tuple[float, dict]]] = {}
+    source_of: dict[str, str] = {}
     for b in bundles:
         har = cdp.har_entries(b) if (Path(b) / "har").exists() else []
+        meta = probe_meta(b)
+        source = (meta or {}).get("source", "production")
+        # Production wins: actions on a UAT screen that failed the version check are dropped.
+        rejected = {r["screen"] for r in (meta or {}).get("rejected", [])}
+        aliases = {origin(u): a for a, u in ((meta or {}).get("uat_urls") or {}).items()}
         for a in screens.load_actions(b):
             if not a.after:
                 continue
-            app, sname, pp = _screen_for(pm, a.url_before)
+            if a.screen_before in rejected or a.screen_after in rejected:
+                continue
+            source_of[a.action_id] = source
+            app, sname, pp = _screen_for(pm, a.url_before, aliases)
             skey = (app, sname)
             screen_meta[skey] = {"app": app, "screen": sname, "url_pattern": pp}
             event = (
@@ -106,9 +121,25 @@ def infer(bundles: list[Path], pm: ProcessMap) -> BehaviorCatalog:
     for sb in per_screen.values():
         for i, r in enumerate(sb.rules, start=1):
             r.id = f"{sb.app}.{sb.screen}.r{i}"
+            r.sources = sorted({source_of.get(e, "production") for e in r.evidence})
+        for o in sb.observed:
+            o["sources"] = sorted({source_of.get(e, "production") for e in o["evidence"]})
     return BehaviorCatalog(
         process=pm.process, screens=sorted(per_screen.values(), key=lambda s: (s.app, s.screen))
     )
+
+
+def _separating_field(items: list[tuple[Action, dict, dict]], navs: list[Action]) -> dict | None:
+    nav_ids = {a.action_id for a in navs}
+    keys = set.intersection(
+        *[{k for k, st in b.items() if st.value is not None} for _, b, _ in items]
+    )
+    for k in sorted(keys):
+        go = [bool((b[k].value or "").strip()) for a, b, _ in items if a.action_id in nav_ids]
+        stay = [bool((b[k].value or "").strip()) for a, b, _ in items if a.action_id not in nav_ids]
+        if all(go) and not any(stay):
+            return {"go": {"field": k, "op": "not_empty"}, "stay": {"field": k, "op": "empty"}}
+    return None
 
 
 def _cond_for(values: list[str | None]) -> dict:
@@ -157,6 +188,7 @@ def _rules_for(
             add("navigate", None, {"to": p}, ev)
         if len(navs) == len(items):
             return  # the after-state is another page; nothing else to diff
+    first_new = len(sb.rules)
     same = [
         (a, b, f)
         for a, b, f in items
@@ -205,6 +237,24 @@ def _rules_for(
         _enabled(add, k, rows)
         _options(add, k, rows)
         _set_value(add, k, rows, sb)
+    # ---- one trigger, two outcomes (navigates / stays and shows something): find the field
+    # state that separates them, e.g. a submit that only goes through with an amount typed.
+    if navs and len(navs) < len(items):
+        cond = _separating_field(items, navs)
+        for r in sb.rules[first_new:]:
+            if r.trigger.condition is None:
+                if cond:
+                    r.trigger.condition = cond["stay"]
+                r.params["blocks_submit"] = True
+        for r in sb.rules:
+            if (
+                r.kind == "navigate"
+                and r.trigger.field == trig
+                and r.trigger.event == event
+                and r.trigger.condition is None
+                and cond
+            ):
+                r.trigger.condition = cond["go"]
     # ---- elements that appeared on the same page (e.g. a block filled by XHR)
     inserted = defaultdict(list)
     for a, b, f in same:
@@ -234,8 +284,11 @@ def _visibility(add, k: str, rows: list, vals: list) -> None:  # noqa: ANN001
     changed = [(a, b, f) for a, b, f in rows if b.visible != f.visible]
     if not changed:
         return
-    shown_vals = [v for (a, _b, f), v in zip(rows, vals, strict=True) if f.visible]
-    hidden_vals = [v for (a, _b, f), v in zip(rows, vals, strict=True) if not f.visible]
+    pairs = [(f, v) for (_a, _b, f), v in zip(rows, vals, strict=True)]
+    if any(v not in (None, "") for _f, v in pairs):
+        pairs = [(f, v) for f, v in pairs if v not in (None, "")]
+    shown_vals = [v for f, v in pairs if f.visible]
+    hidden_vals = [v for f, v in pairs if not f.visible]
     nums_s = [_num(v) for v in shown_vals]
     nums_h = [_num(v) for v in hidden_vals]
     ev_s = [a.action_id for a, _b, f in rows if f.visible]
@@ -261,7 +314,9 @@ def _visibility(add, k: str, rows: list, vals: list) -> None:  # noqa: ANN001
         )
         return
     if not hidden_vals:
-        add("show", k, {}, [a.action_id for a, _, _ in changed], None)
+        texts = {f.text for _a, _b, f in changed if f.text}
+        params = {"text": texts.pop()} if len(texts) == 1 else {}
+        add("show", k, params, [a.action_id for a, _, _ in changed], None)
     elif not shown_vals:
         add("hide", k, {}, [a.action_id for a, _, _ in changed], None)
     else:

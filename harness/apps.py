@@ -183,6 +183,7 @@ LOAN2 = """{% extends layout %}{% block body %}
 <option value="">-- choose --</option><option value="AUTO">Auto</option><option value="HOME">Home improvement</option><option value="PERSONAL">Personal</option></select></div>
 <div class="row"><label for="subPurpose">Sub-purpose</label><select id="subPurpose" name="subPurpose" disabled><option value="">-- choose --</option></select></div>
 <div class="row" id="cosignerRow" hidden><label for="cosigner">Co-signer name</label><input id="cosigner" name="cosigner" type="text"></div>
+{% if variant == "changed" %}<div class="row"><label for="rate">Rate type</label><input id="rate" name="rate" type="text"></div>{% endif %}
 <div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
 <p id="formError" class="err" hidden></p>
 <button id="submit" type="submit">Submit</button>
@@ -232,7 +233,9 @@ def _customer_by_acct(db: sqlite3.Connection, acct: str) -> dict | None:
     return m
 
 
-def create_app2(db_path: Path) -> Flask:
+def create_app2(db_path: Path, variant: str | None = None) -> Flask:
+    """`variant="changed"` stands in for a UAT build that is ahead of production (one extra
+    field on the loan form), so probing can be shown to reject it."""
     app = _make("app2", db_path)
 
     def page(tpl: str, **kw):  # noqa: ANN202
@@ -261,7 +264,11 @@ def create_app2(db_path: Path) -> Flask:
         if m is None:
             abort(404)
         return page(
-            LOAN2, title="Core - New Loan", acct=acct, name=f"{m['FIRST_NM']} {m['LAST_NM']}"
+            LOAN2,
+            title="Core - New Loan",
+            acct=acct,
+            name=f"{m['FIRST_NM']} {m['LAST_NM']}",
+            variant=variant,
         )
 
     @app.post("/loan")

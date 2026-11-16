@@ -92,7 +92,7 @@ def golden(ws: Workspace) -> BotTrace:
 def step_behaviors(ws: Workspace) -> dict:
     from echo.analyze.behaviors import infer
 
-    cat = infer([ws.bundle], process_map(ws))
+    cat = infer([ws.bundle, *probe_bundles(ws)], process_map(ws))
     write_json(ws.work / "behaviors.json", cat.model_dump())
     return {"screens": len(cat.screens), "rules": sum(len(s.rules) for s in cat.screens)}
 
@@ -519,3 +519,85 @@ def run_all(ws: Workspace, runs: int = 5, replay_check: bool = True) -> dict:
         out["parity_self"] = step_parity_self(ws)["status"]
     write_json(ws.work / "pipeline.json", out)
     return out
+
+
+def probe_bundles(ws: Workspace) -> list[Path]:
+    p = ws.work / "probes.json"
+    return [Path(x) for x in read_json(p)] if p.exists() else []
+
+
+def probe_plan(ws: Workspace) -> list[dict]:
+    """Probes for the gaps the catalog reports: numeric conditions with an uncertain bound, and
+    the first typed field of each posted form left empty (required-field validation)."""
+    cat = BehaviorCatalog(**read_json(ws.work / "behaviors.json"))
+    probes: list[dict] = []
+    for sb in cat.screens:
+        for r in sb.rules:
+            c = r.trigger.condition or {}
+            if r.kind == "show" and c.get("op") == "gt" and c.get("bound"):
+                lo, hi = c["bound"]
+                if hi - lo > 1 and not any(p.get("field") == r.trigger.field for p in probes):
+                    probes.append(
+                        {
+                            "kind": "threshold",
+                            "field": r.trigger.field,
+                            "target": r.target,
+                            "bound": [lo, hi],
+                        }
+                    )
+    g = golden(ws)
+    form_steps = [
+        s
+        for s in g.steps
+        if s.screen == "new_loan" and s.action in ("type", "select") and not s.redacted
+    ]
+    if form_steps:
+        first = form_steps[0]
+        probes.append(
+            {
+                "kind": "required",
+                "field": first.selector,
+                "fill": {
+                    s.selector: s.value for s in form_steps[1:] if s.value and s.field != "cosigner"
+                },
+                "submit": "#submit",
+            }
+        )
+    return probes
+
+
+def step_probe(
+    ws: Workspace, variant: str | None = None, ports: tuple[int, int] = (5111, 5112)
+) -> dict:
+    """I-22b: probe a second harness instance standing in for UAT (fresh DB, own ports)."""
+    from sqlalchemy import create_engine, text
+
+    from echo.capture import probe
+    from harness.data import create_db
+    from harness.server import start
+
+    uat_db = create_db(ws.root / "uat" / f"uat-{variant or 'current'}.sqlite")
+    eng = create_engine(f"sqlite:///{uat_db.as_posix()}")
+    try:
+        with eng.connect() as con:
+            reserved = con.execute(
+                text("SELECT ACCT_NO FROM ACCT ORDER BY ACCT_NO LIMIT 1")
+            ).scalar()
+    finally:
+        eng.dispose()  # Windows keeps an open SQLite file locked
+    h = start(db=uat_db, app1_port=ports[0], app2_port=ports[1], variant=variant)
+    try:
+        bundle = probe.run(ws.root / "bundles-probe", h.urls, reserved, probe_plan(ws), [ws.bundle])
+    finally:
+        h.stop()
+    meta = probe.probe_meta(bundle)
+    listed = [str(p) for p in probe_bundles(ws)]
+    listed.append(str(bundle))
+    write_json(ws.work / "probes.json", listed)
+    return {
+        "bundle": str(bundle),
+        "variant": variant,
+        "accepted": meta["accepted"],
+        "rejected": meta["rejected"],
+        "probes": meta["probes"],
+    }

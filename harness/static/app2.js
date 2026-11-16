@@ -82,6 +82,16 @@
       var v = parseFloat(amt.value.replace(/[^0-9.]/g, ""));
       row.hidden = !(v > THRESHOLD);
     });
+    // Client-side validation the bot never triggers (it always types an amount): only
+    // behavior probing (I-22b) can observe it.
+    var err = document.getElementById("formError");
+    form.addEventListener("submit", function (e) {
+      if (!amt.value.trim()) {
+        e.preventDefault();
+        err.textContent = "Loan amount is required";
+        err.hidden = false;
+      }
+    });
     ssn.addEventListener("input", function () {
       var d = ssn.value.replace(/\D/g, "").slice(0, 9);
       var out = d.slice(0, 3);
