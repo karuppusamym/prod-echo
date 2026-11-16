@@ -53,6 +53,11 @@ def normalize_dom(root: H.Node) -> H.Node:
     def walk(n: H.Node) -> None:
         keep = []
         for c in n.children:
+            if c.tag == "template" and c.get("shadowrootmode") == "closed":
+                # A declarative closed root would hide its content from the behavior runtime as
+                # well; the runtime attaches it as a closed root itself and keeps the reference.
+                c.attrs = [a for a in c.attrs if a[0] != "shadowrootmode"]
+                c.attrs.append(["data-echo-shadow", "closed"])
             if c.tag in ("script", "#comment"):  # comments can carry captured values too
                 continue
             if c.tag == "link" and (c.get("as") == "script" or c.get("rel") == "modulepreload"):

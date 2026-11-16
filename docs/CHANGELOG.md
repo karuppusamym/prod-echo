@@ -248,3 +248,22 @@ Fixes found on the way:
 
 No OCR is used anywhere. Tests: 151 fast (8 new in `tests/test_frames_shadow.py`), 16 browser
 (a new cross-origin frame capture test; the replica's shadow-root rule).
+
+## 2026-11-16 — Closed shadow roots
+
+Closed shadow roots, the remaining gap in the previous entry, are now handled.
+- **Capture.** The page script wraps `attachShadow` and keeps a private reference to each closed
+  root; the page still gets its closed root. Closed roots are walked, serialized
+  (`shadowrootmode="closed"`) and listened to, with events from inside attributed to the real
+  element (`#terms >>> #termsChk`), not the host.
+- **Recorder attached late.** When the recorder joins a page that built its closed roots
+  earlier, the snapshot is marked `late`. The recorder then saves the document through DevTools
+  (`DOM.getOuterHTML` with `includeShadowDOM`).
+- **Generated app.** Closed roots stay closed. The package ships them as inert templates, and the
+  runtime attaches each one as closed and keeps the reference for its rules.
+- **Harness.** The loan form gained a `<terms-box>` with a closed root. The bot clicks its
+  checkbox by position, since no selector reaches it. The whole harness chain passes with it
+  (5/5 replays, agent parity).
+
+Tests: 152 fast, 17 browser (closed-root capture, the late-attach fallback, the replica's
+closed-root rule).

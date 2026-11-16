@@ -2,8 +2,8 @@
   "session_id": "harness_bundle",
   "robot": "harness-bot",
   "process": "harness_loan",
-  "started": "2026-11-16T17:40:22.692575Z",
-  "ended": "2026-11-16T17:40:49.374279Z",
+  "started": "2026-11-16T18:18:13.530557Z",
+  "ended": "2026-11-16T18:18:41.781881Z",
   "sources": {
     "robot_log": true,
     "netlog": true,

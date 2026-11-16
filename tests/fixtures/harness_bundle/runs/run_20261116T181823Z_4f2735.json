@@ -1,16 +1,434 @@
 {
-  "run_id": "run_20261116T174040Z_8ced4f",
+  "run_id": "run_20261116T181823Z_4f2735",
   "session_id": "harness_bundle",
-  "clock_offset_ms": 5.43896484375,
+  "clock_offset_ms": 6.447021484375,
   "activities": [
     {
       "seq": 1,
-      "ts": "2026-11-16T17:40:40.723396Z",
-      "end": "2026-11-16T17:40:40.743341Z",
+      "ts": "2026-11-16T18:18:23.020844Z",
+      "end": "2026-11-16T18:18:23.044570Z",
       "activity": "NavigateTo",
       "display": "Open CRM search",
       "selector": null,
       "screen": 1,
+      "action_id": null,
+      "requests": [
+        26,
+        27,
+        28
+      ],
+      "har_entries": [
+        25,
+        26,
+        27
+      ]
+    },
+    {
+      "seq": 2,
+      "ts": "2026-11-16T18:18:23.396039Z",
+      "end": "2026-11-16T18:18:23.780590Z",
+      "activity": "TypeInto",
+      "display": "Type customer name",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "CRM - Search",
+        "id": "custName",
+        "tag": "INPUT"
+      },
+      "screen": 1,
+      "action_id": "1-1794853103428",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 3,
+      "ts": "2026-11-16T18:18:24.132150Z",
+      "end": "2026-11-16T18:18:24.202202Z",
+      "activity": "Click",
+      "display": "Click search",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "CRM - Search",
+        "id": "searchBtn",
+        "tag": "BUTTON"
+      },
+      "screen": 1,
+      "action_id": "2-1794853104161",
+      "requests": [
+        29,
+        30,
+        31
+      ],
+      "har_entries": [
+        28,
+        29,
+        30
+      ]
+    },
+    {
+      "seq": 4,
+      "ts": "2026-11-16T18:18:24.553570Z",
+      "end": "2026-11-16T18:18:24.651962Z",
+      "activity": "Click",
+      "display": "Open customer",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "CRM - Results",
+        "tag": "A",
+        "cls": "open",
+        "aaname": "Open"
+      },
+      "screen": 11,
+      "action_id": "1-1794853104600",
+      "requests": [
+        32,
+        33,
+        34
+      ],
+      "har_entries": [
+        31,
+        32,
+        33
+      ]
+    },
+    {
+      "seq": 5,
+      "ts": "2026-11-16T18:18:25.003463Z",
+      "end": "2026-11-16T18:18:25.022325Z",
+      "activity": "GetText",
+      "display": "Read account no",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "CRM - Customer",
+        "tag": "TD",
+        "cls": "acct",
+        "idx": "1"
+      },
+      "screen": 12,
+      "action_id": null,
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 6,
+      "ts": "2026-11-16T18:18:25.374197Z",
+      "end": "2026-11-16T18:18:25.422778Z",
+      "activity": "NavigateTo",
+      "display": "Open Core lookup",
+      "selector": null,
+      "screen": 4,
+      "action_id": null,
+      "requests": [
+        35,
+        36,
+        37,
+        38
+      ],
+      "har_entries": [
+        34,
+        35,
+        36,
+        37
+      ]
+    },
+    {
+      "seq": 7,
+      "ts": "2026-11-16T18:18:25.774098Z",
+      "end": "2026-11-16T18:18:26.058491Z",
+      "activity": "TypeInto",
+      "display": "Type account number",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Search",
+        "id": "acct",
+        "tag": "INPUT"
+      },
+      "screen": 4,
+      "action_id": "1-1794853105812",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 8,
+      "ts": "2026-11-16T18:18:26.409751Z",
+      "end": "2026-11-16T18:18:26.434463Z",
+      "activity": "Click",
+      "display": "Click find",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Search",
+        "id": "searchBtn",
+        "tag": "BUTTON"
+      },
+      "screen": 4,
+      "action_id": "2-1794853106430",
+      "requests": [
+        39
+      ],
+      "har_entries": [
+        38
+      ]
+    },
+    {
+      "seq": 9,
+      "ts": "2026-11-16T18:18:26.785798Z",
+      "end": "2026-11-16T18:18:26.894139Z",
+      "activity": "WaitUiElementAppear",
+      "display": "Wait for details",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Search",
+        "id": "newLoan",
+        "tag": "A"
+      },
+      "screen": 13,
+      "action_id": null,
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 10,
+      "ts": "2026-11-16T18:18:27.246416Z",
+      "end": "2026-11-16T18:18:27.250871Z",
+      "activity": "GetText",
+      "display": "Read SSN",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Search",
+        "id": "dSsn",
+        "tag": "DD"
+      },
+      "screen": 13,
+      "action_id": null,
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 11,
+      "ts": "2026-11-16T18:18:27.602119Z",
+      "end": "2026-11-16T18:18:27.674459Z",
+      "activity": "Click",
+      "display": "Click new loan",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Search",
+        "id": "newLoan",
+        "tag": "A"
+      },
+      "screen": 13,
+      "action_id": "3-1794853107628",
+      "requests": [
+        40,
+        41,
+        42,
+        43
+      ],
+      "har_entries": [
+        39,
+        40,
+        41,
+        42
+      ]
+    },
+    {
+      "seq": 12,
+      "ts": "2026-11-16T18:18:28.026031Z",
+      "end": "2026-11-16T18:18:28.190723Z",
+      "activity": "TypeInto",
+      "display": "Type loan amount",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "loanAmt",
+        "tag": "INPUT"
+      },
+      "screen": 14,
+      "action_id": "1-1794853108060",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 13,
+      "ts": "2026-11-16T18:18:28.541803Z",
+      "end": "2026-11-16T18:18:28.624345Z",
+      "activity": "TypeInto",
+      "display": "Type term",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "term",
+        "tag": "INPUT"
+      },
+      "screen": 15,
+      "action_id": "2-1794853108559",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 14,
+      "ts": "2026-11-16T18:18:28.975890Z",
+      "end": "2026-11-16T18:18:28.982256Z",
+      "activity": "SelectItem",
+      "display": "Select purpose",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "purpose",
+        "tag": "SELECT"
+      },
+      "screen": 15,
+      "action_id": "3-1794853108981",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 15,
+      "ts": "2026-11-16T18:18:29.333553Z",
+      "end": "2026-11-16T18:18:29.341242Z",
+      "activity": "SelectItem",
+      "display": "Select sub-purpose",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "subPurpose",
+        "tag": "SELECT"
+      },
+      "screen": 16,
+      "action_id": "4-1794853109340",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 16,
+      "ts": "2026-11-16T18:18:29.695538Z",
+      "end": "2026-11-16T18:18:29.876212Z",
+      "activity": "TypeInto",
+      "display": "Type co-signer",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "cosigner",
+        "tag": "INPUT"
+      },
+      "screen": 16,
+      "action_id": "5-1794853109710",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 17,
+      "ts": "2026-11-16T18:18:30.227192Z",
+      "end": "2026-11-16T18:18:30.460992Z",
+      "activity": "TypeInto",
+      "display": "Type SSN",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "ssn",
+        "tag": "INPUT"
+      },
+      "screen": 16,
+      "action_id": "6-1794853110244",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 18,
+      "ts": "2026-11-16T18:18:30.812160Z",
+      "end": "2026-11-16T18:18:30.827400Z",
+      "activity": "Click",
+      "display": "Confirm identity",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "ackChk",
+        "tag": "INPUT"
+      },
+      "screen": 16,
+      "action_id": "7-1794853110825",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 19,
+      "ts": "2026-11-16T18:18:31.178700Z",
+      "end": "2026-11-16T18:18:31.194791Z",
+      "activity": "Click",
+      "display": "Accept terms",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "termsChk",
+        "tag": "INPUT"
+      },
+      "screen": 17,
+      "action_id": "8-1794853111193",
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 20,
+      "ts": "2026-11-16T18:18:31.545688Z",
+      "end": "2026-11-16T18:18:31.650508Z",
+      "activity": "Click",
+      "display": "Click submit",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - New Loan",
+        "id": "submit",
+        "tag": "BUTTON"
+      },
+      "screen": 18,
+      "action_id": "9-1794853111576",
+      "requests": [
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50
+      ],
+      "har_entries": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49
+      ]
+    },
+    {
+      "seq": 21,
+      "ts": "2026-11-16T18:18:32.012591Z",
+      "end": "2026-11-16T18:18:32.016602Z",
+      "activity": "GetText",
+      "display": "Read loan number",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Loan Confirmation",
+        "id": "loanNo",
+        "tag": "SPAN"
+      },
+      "screen": 19,
+      "action_id": null,
+      "requests": [],
+      "har_entries": []
+    },
+    {
+      "seq": 22,
+      "ts": "2026-11-16T18:18:32.367429Z",
+      "end": "2026-11-16T18:18:32.379519Z",
+      "activity": "GetText",
+      "display": "Read summary amount",
+      "selector": {
+        "app": "chrome.exe",
+        "title": "Core - Loan Confirmation",
+        "id": "sumAmt",
+        "tag": "SPAN"
+      },
+      "screen": 19,
       "action_id": null,
       "requests": [
         51,
@@ -22,382 +440,6 @@
         51,
         52
       ]
-    },
-    {
-      "seq": 2,
-      "ts": "2026-11-16T17:40:41.094926Z",
-      "end": "2026-11-16T17:40:41.395278Z",
-      "activity": "TypeInto",
-      "display": "Type customer name",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "CRM - Search",
-        "id": "custName",
-        "tag": "INPUT"
-      },
-      "screen": 1,
-      "action_id": "1-1794850841134",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 3,
-      "ts": "2026-11-16T17:40:41.746474Z",
-      "end": "2026-11-16T17:40:41.823636Z",
-      "activity": "Click",
-      "display": "Click search",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "CRM - Search",
-        "id": "searchBtn",
-        "tag": "BUTTON"
-      },
-      "screen": 1,
-      "action_id": "2-1794850841767",
-      "requests": [
-        54,
-        55,
-        56
-      ],
-      "har_entries": [
-        53,
-        54,
-        55
-      ]
-    },
-    {
-      "seq": 4,
-      "ts": "2026-11-16T17:40:42.175433Z",
-      "end": "2026-11-16T17:40:42.245778Z",
-      "activity": "Click",
-      "display": "Open customer",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "CRM - Results",
-        "tag": "A",
-        "cls": "open",
-        "aaname": "Open"
-      },
-      "screen": 2,
-      "action_id": "1-1794850842220",
-      "requests": [
-        57,
-        58,
-        59
-      ],
-      "har_entries": [
-        56,
-        57,
-        58
-      ]
-    },
-    {
-      "seq": 5,
-      "ts": "2026-11-16T17:40:42.596849Z",
-      "end": "2026-11-16T17:40:42.607384Z",
-      "activity": "GetText",
-      "display": "Read account no",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "CRM - Customer",
-        "tag": "TD",
-        "cls": "acct",
-        "idx": "1"
-      },
-      "screen": 3,
-      "action_id": null,
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 6,
-      "ts": "2026-11-16T17:40:42.958825Z",
-      "end": "2026-11-16T17:40:42.987060Z",
-      "activity": "NavigateTo",
-      "display": "Open Core lookup",
-      "selector": null,
-      "screen": 4,
-      "action_id": null,
-      "requests": [
-        60,
-        61,
-        62,
-        63
-      ],
-      "har_entries": [
-        59,
-        60,
-        61,
-        62
-      ]
-    },
-    {
-      "seq": 7,
-      "ts": "2026-11-16T17:40:43.339432Z",
-      "end": "2026-11-16T17:40:43.618633Z",
-      "activity": "TypeInto",
-      "display": "Type account number",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Search",
-        "id": "acct",
-        "tag": "INPUT"
-      },
-      "screen": 4,
-      "action_id": "1-1794850843386",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 8,
-      "ts": "2026-11-16T17:40:43.969615Z",
-      "end": "2026-11-16T17:40:43.989758Z",
-      "activity": "Click",
-      "display": "Click find",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Search",
-        "id": "searchBtn",
-        "tag": "BUTTON"
-      },
-      "screen": 4,
-      "action_id": "2-1794850843985",
-      "requests": [
-        64
-      ],
-      "har_entries": [
-        63
-      ]
-    },
-    {
-      "seq": 9,
-      "ts": "2026-11-16T17:40:44.340830Z",
-      "end": "2026-11-16T17:40:44.431845Z",
-      "activity": "WaitUiElementAppear",
-      "display": "Wait for details",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Search",
-        "id": "newLoan",
-        "tag": "A"
-      },
-      "screen": 5,
-      "action_id": null,
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 10,
-      "ts": "2026-11-16T17:40:44.783053Z",
-      "end": "2026-11-16T17:40:44.787946Z",
-      "activity": "GetText",
-      "display": "Read SSN",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Search",
-        "id": "dSsn",
-        "tag": "DD"
-      },
-      "screen": 5,
-      "action_id": null,
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 11,
-      "ts": "2026-11-16T17:40:45.139062Z",
-      "end": "2026-11-16T17:40:45.196523Z",
-      "activity": "Click",
-      "display": "Click new loan",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Search",
-        "id": "newLoan",
-        "tag": "A"
-      },
-      "screen": 5,
-      "action_id": "3-1794850845167",
-      "requests": [
-        65,
-        66,
-        67,
-        68
-      ],
-      "har_entries": [
-        64,
-        65,
-        66,
-        67
-      ]
-    },
-    {
-      "seq": 12,
-      "ts": "2026-11-16T17:40:45.547550Z",
-      "end": "2026-11-16T17:40:45.681633Z",
-      "activity": "TypeInto",
-      "display": "Type loan amount",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "loanAmt",
-        "tag": "INPUT"
-      },
-      "screen": 6,
-      "action_id": "1-1794850845584",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 13,
-      "ts": "2026-11-16T17:40:46.033084Z",
-      "end": "2026-11-16T17:40:46.099426Z",
-      "activity": "TypeInto",
-      "display": "Type term",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "term",
-        "tag": "INPUT"
-      },
-      "screen": 6,
-      "action_id": "2-1794850846050",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 14,
-      "ts": "2026-11-16T17:40:46.450561Z",
-      "end": "2026-11-16T17:40:46.457128Z",
-      "activity": "SelectItem",
-      "display": "Select purpose",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "purpose",
-        "tag": "SELECT"
-      },
-      "screen": 6,
-      "action_id": "3-1794850846456",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 15,
-      "ts": "2026-11-16T17:40:46.808668Z",
-      "end": "2026-11-16T17:40:46.814802Z",
-      "activity": "SelectItem",
-      "display": "Select sub-purpose",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "subPurpose",
-        "tag": "SELECT"
-      },
-      "screen": 18,
-      "action_id": "4-1794850846813",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 16,
-      "ts": "2026-11-16T17:40:47.168892Z",
-      "end": "2026-11-16T17:40:47.417607Z",
-      "activity": "TypeInto",
-      "display": "Type SSN",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "ssn",
-        "tag": "INPUT"
-      },
-      "screen": 18,
-      "action_id": "5-1794850847183",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 17,
-      "ts": "2026-11-16T17:40:47.768636Z",
-      "end": "2026-11-16T17:40:47.788265Z",
-      "activity": "Click",
-      "display": "Confirm identity",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "ackChk",
-        "tag": "INPUT"
-      },
-      "screen": 18,
-      "action_id": "6-1794850847786",
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 18,
-      "ts": "2026-11-16T17:40:48.139419Z",
-      "end": "2026-11-16T17:40:48.278214Z",
-      "activity": "Click",
-      "display": "Click submit",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - New Loan",
-        "id": "submit",
-        "tag": "BUTTON"
-      },
-      "screen": 19,
-      "action_id": "7-1794850848167",
-      "requests": [
-        69,
-        70,
-        71,
-        72,
-        73,
-        74,
-        75
-      ],
-      "har_entries": [
-        68,
-        69,
-        70,
-        71,
-        72,
-        73,
-        74
-      ]
-    },
-    {
-      "seq": 19,
-      "ts": "2026-11-16T17:40:48.644955Z",
-      "end": "2026-11-16T17:40:48.650180Z",
-      "activity": "GetText",
-      "display": "Read loan number",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Loan Confirmation",
-        "id": "loanNo",
-        "tag": "SPAN"
-      },
-      "screen": 20,
-      "action_id": null,
-      "requests": [],
-      "har_entries": []
-    },
-    {
-      "seq": 20,
-      "ts": "2026-11-16T17:40:49.001463Z",
-      "end": "2026-11-16T17:40:49.022704Z",
-      "activity": "GetText",
-      "display": "Read summary amount",
-      "selector": {
-        "app": "chrome.exe",
-        "title": "Core - Loan Confirmation",
-        "id": "sumAmt",
-        "tag": "SPAN"
-      },
-      "screen": 20,
-      "action_id": null,
-      "requests": [],
-      "har_entries": []
     }
   ]
 }

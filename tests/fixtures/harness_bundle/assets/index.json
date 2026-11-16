@@ -1,17 +1,17 @@
 [
   {
-    "url": "http://127.0.0.1:5101/static/app1.css",
-    "path": "/static/app1.css",
-    "sha256": "f8f0229d8c7a8fa882120cb0dfbd129444f3137a1a98025dad4e3051209b16b7",
-    "mime": "text/css",
-    "file": "f8f0229d8c7a8fa8.css"
-  },
-  {
     "url": "http://127.0.0.1:5101/static/logo1.svg",
     "path": "/static/logo1.svg",
     "sha256": "ea120da8494035b7831352c250a300c16ce58be9f9aebcbc2973b4e0949b76d1",
     "mime": "image/svg+xml",
     "file": "ea120da8494035b7.svg"
+  },
+  {
+    "url": "http://127.0.0.1:5101/static/app1.css",
+    "path": "/static/app1.css",
+    "sha256": "f8f0229d8c7a8fa882120cb0dfbd129444f3137a1a98025dad4e3051209b16b7",
+    "mime": "text/css",
+    "file": "f8f0229d8c7a8fa8.css"
   },
   {
     "url": "http://127.0.0.1:5102/static/app2.css",

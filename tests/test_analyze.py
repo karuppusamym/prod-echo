@@ -98,8 +98,9 @@ def test_analyzer_reproduces_the_scenario_step_by_step(ws, golden) -> None:  # n
     assert ("app2", "search", "type", "acct") in steps
     for f in ("loanAmt", "term", "purpose", "ssn"):
         assert any(s[3] == f and s[2] in ("type", "select") for s in steps)
-    assert steps[-4:] == [
-        ("app2", "new_loan", "click", "ackChk"),  # inside the <ack-box> shadow root
+    assert steps[-5:] == [
+        ("app2", "new_loan", "click", "ackChk"),  # inside the <ack-box> open shadow root
+        ("app2", "new_loan", "click", "termsChk"),  # inside the <terms-box> closed shadow root
         ("app2", "new_loan", "click", "submit"),
         ("app2", "loan_confirmation", "read", "loanNo"),
         ("app2", "loan_confirmation", "read", "sumAmt"),  # inside the summary iframe

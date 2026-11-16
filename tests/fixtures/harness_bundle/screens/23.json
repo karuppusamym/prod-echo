@@ -1,0 +1,47 @@
+{
+  "n": 23,
+  "url": "http://127.0.0.1:5102/loan/70000099",
+  "title": "Core - Loan Confirmation",
+  "dom_hash": "sha256:ecbff0b969114e060ff0d74c4161e33e8b1b9363ae8c6b75398465929fcad9f2",
+  "captured": "2026-11-16T18:18:40.879Z",
+  "png": "23.png",
+  "elements": [
+    {
+      "tag": "a",
+      "id": "newSearch",
+      "name": null,
+      "label": null,
+      "css": "#newSearch",
+      "aria": null,
+      "text": "Back to lookup",
+      "editable": false,
+      "type": null,
+      "visible": true,
+      "key": "#newSearch"
+    }
+  ],
+  "frames": [
+    {
+      "key": "iframe#sumFrame",
+      "url": "http://127.0.0.1:5102/loan/70000099/summary",
+      "title": "Loan summary",
+      "html": "23.frame1.html",
+      "dom_hash": "sha256:c2a4da450dafb2861fcb68d12a096f07d8f9b6572b3633d5d7751aaa7e49bf73",
+      "cross_origin": false
+    }
+  ],
+  "opaque": [
+    {
+      "key": "#payChart",
+      "tag": "canvas",
+      "type": null,
+      "rect": {
+        "x": 16.0,
+        "y": 491.875,
+        "width": 380.0,
+        "height": 90.0
+      },
+      "png": "23.opaque1.png"
+    }
+  ]
+}

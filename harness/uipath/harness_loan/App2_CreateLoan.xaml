@@ -80,6 +80,11 @@
         <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='ackChk' tag='INPUT' /&gt;" />
       </ui:Click.Target>
     </ui:Click>
+    <ui:Click DisplayName="Accept terms">
+      <ui:Click.Target>
+        <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='termsChk' tag='INPUT' /&gt;" />
+      </ui:Click.Target>
+    </ui:Click>
     <ui:Click DisplayName="Click submit">
       <ui:Click.Target>
         <ui:Target Selector="&lt;html app='chrome.exe' title='Core - New Loan' /&gt;&lt;webctrl id='submit' tag='BUTTON' /&gt;" />

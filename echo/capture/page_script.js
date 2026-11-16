@@ -7,8 +7,12 @@
 //
 // It runs in every frame. Each frame reports its own document; the recorder knows which frame a
 // report came from (by execution context) and composes the frames into the top-level screen.
-// Open shadow roots are walked: their elements are tracked and keyed `<host key> >>> <inner key>`,
-// and the snapshot HTML carries them as declarative shadow DOM (<template shadowrootmode="open">).
+// Shadow roots are walked: their elements are tracked and keyed `<host key> >>> <inner key>`, and
+// the snapshot HTML carries them as declarative shadow DOM (<template shadowrootmode="...">).
+// Closed roots are not reachable through element.shadowRoot, so attachShadow is wrapped (like
+// fetch/XHR below) to keep a private reference to each closed root; the page still gets a closed
+// root and behaves the same. Closed roots created before this script arrived are not known here;
+// the snapshot says so (`late`) and the recorder reads the document through DevTools instead.
 // Content with no HTML to read (canvas, embedded PDF/plugin objects) is listed as `opaque` with its
 // box, so the recorder can crop it from the screenshot.
 (function () {
@@ -19,6 +23,19 @@
   var pending = 0, lastMutation = Date.now(), lastSettled = null, cur = null, seq = 0;
   var loadSettled = false;
   var observed = new WeakSet();
+  var LATE = document.readyState !== "loading";  // evaluated into an already-open document
+
+  // ---- closed shadow roots: keep a reference, change nothing the page can see
+  var closedRoots = new WeakMap();  // host -> its closed root
+  var origAttach = Element.prototype.attachShadow;
+  if (origAttach) {
+    Element.prototype.attachShadow = function (init) {
+      var r = origAttach.apply(this, arguments);
+      if (init && init.mode === "closed") closedRoots.set(this, r);
+      return r;
+    };
+  }
+  function rootOf(host) { return host.shadowRoot || closedRoots.get(host) || null; }
 
   function emit(obj) {
     try { if (window.__echoEmit) window.__echoEmit(JSON.stringify(obj)); } catch (e) { /* ignore */ }
@@ -47,7 +64,10 @@
     var out = [document], i = 0;
     while (i < out.length) {
       var all = out[i++].querySelectorAll("*");
-      for (var j = 0; j < all.length; j++) if (all[j].shadowRoot) out.push(all[j].shadowRoot);
+      for (var j = 0; j < all.length; j++) {
+        var sr = rootOf(all[j]);
+        if (sr) out.push(sr);
+      }
     }
     return out;
   }
@@ -193,7 +213,7 @@
     observeRoots();
     return { kind: "settled", reason: reason, ts: Date.now(), url: location.href,
              title: document.title, html: serialize(), elements: elements(), after: states(),
-             opaque: opaque(), top: window.top === window };
+             opaque: opaque(), top: window.top === window, late: LATE };
   }
   // the recorder asks the top document for a fresh snapshot when a frame settles
   window.__echoSnapshot = function (reason) { return JSON.stringify(snapshotPayload(reason || "frame")); };
@@ -229,6 +249,11 @@
   function isToggle(el) { return el.tagName === "INPUT" && /^(checkbox|radio)$/.test(el.type); }
 
   function onEvent(ev) {
+    // An event from inside a closed root reaches outer listeners retargeted to the host; the
+    // listener on that closed root sees the real element and reports it instead.
+    var path = ev.composedPath ? ev.composedPath() : [];
+    if (path.length && path[0].nodeType === 1 && closedRoots.has(path[0]) &&
+        ev.currentTarget !== closedRoots.get(path[0])) return;
     var el = interesting(ev);
     if (!el) return;
     var type = ev.type;
@@ -280,8 +305,13 @@
       if (observed.has(r)) return;
       observed.add(r);
       mo.observe(r === document ? document.documentElement : r, MO_OPTS);
-      // `change` is not a composed event: it never reaches the document from a shadow root
+      // `change` is not a composed event: it never reaches the document from a shadow root.
+      // Nothing from inside a closed root reaches outer listeners with its real target.
       if (r !== document) r.addEventListener("change", onEvent, true);
+      if (r !== document && r.host && closedRoots.get(r.host) === r) {
+        r.addEventListener("click", onEvent, true);
+        r.addEventListener("input", onEvent, true);
+      }
     });
   }
 

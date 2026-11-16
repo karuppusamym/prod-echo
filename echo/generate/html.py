@@ -140,9 +140,14 @@ def clone(n: Node, parent: Node | None = None) -> Node:
 
 
 def shadow_root(host: Node) -> Node | None:
-    """The declarative shadow root (<template shadowrootmode>) a captured host carries."""
+    """The shadow root a captured host carries: a declarative one (<template shadowrootmode>), or
+    a closed one the runtime attaches (<template data-echo-shadow="closed">)."""
     return next(
-        (c for c in host.element_children() if c.tag == "template" and c.get("shadowrootmode")),
+        (
+            c
+            for c in host.element_children()
+            if c.tag == "template" and (c.get("shadowrootmode") or c.get("data-echo-shadow"))
+        ),
         None,
     )
 

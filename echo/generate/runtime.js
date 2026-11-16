@@ -15,6 +15,28 @@
   if (!node) return;
   var B = JSON.parse(node.textContent);
   var committed = new Map();
+
+  // Closed shadow roots: the generator ships them as <template data-echo-shadow="closed">; attach
+  // each as a closed root (the agent cannot reach into it, as on the real app) and keep the
+  // reference so rules and listeners can. Templates that are left inside attached content
+  // (declarative roots are only parsed from HTML) are attached the same way.
+  var closed = new WeakMap();
+  function rootOf(host) { return host.shadowRoot || closed.get(host) || null; }
+  function materialize(root) {
+    var ts = root.querySelectorAll("template[data-echo-shadow], template[shadowrootmode]");
+    Array.prototype.forEach.call(ts, function (t) {
+      var host = t.parentElement;
+      if (!host || rootOf(host)) return;
+      var mode = t.getAttribute("data-echo-shadow") || t.getAttribute("shadowrootmode") || "open";
+      var r;
+      try { r = host.attachShadow({ mode: mode === "closed" ? "closed" : "open" }); } catch (e) { return; }
+      r.appendChild(t.content.cloneNode(true));
+      t.remove();
+      if (mode === "closed") closed.set(host, r);
+      materialize(r);
+    });
+  }
+  materialize(document);
   var blockSubmit = false;
 
   // Same key algorithm as the capture page script, so rules address the same elements.
@@ -83,14 +105,23 @@
       var sh = parts[parts.length - 1].split(" >>> "), root = doc;
       for (var j = 0; j < sh.length - 1; j++) {
         var host = root.querySelector(sh[j]);
-        if (!host || !host.shadowRoot) return null;
-        root = host.shadowRoot;
+        var sr = host ? rootOf(host) : null;
+        if (!sr) return null;
+        root = sr;
       }
       return root.querySelector(sh[sh.length - 1]);
     } catch (e) { return null; }
   }
   // the element acted on: first interactive element on the composed path (shadow-aware)
+  // an event from inside a closed root reaches outer listeners retargeted to the host: skip it
+  // there; the listener on the closed root sees the real element
+  function fromClosed(e) {
+    var path = e.composedPath ? e.composedPath() : [];
+    return path.length && path[0].nodeType === 1 && closed.has(path[0]) &&
+      e.currentTarget !== closed.get(path[0]);
+  }
   function pick(e) {
+    if (fromClosed(e)) return null;
     var path = e.composedPath ? e.composedPath() : [e.target];
     for (var i = 0; i < path.length; i++) {
       var n = path[i];
@@ -236,6 +267,7 @@
     handle(el, "change");
   }
   function onClick(e) {
+    if (fromClosed(e)) return;
     var op = opaqueOf(e);
     if (op) { unobserved(op, "click", null, "opaque_region:" + op.getAttribute("data-echo-opaque")); return; }
     var el = pick(e);
@@ -256,16 +288,19 @@
     var all = doc.querySelectorAll("*");
     for (var i = 0; i < all.length; i++) {
       var n = all[i];
-      if (n.shadowRoot && !wired.has(n.shadowRoot)) {
-        wired.add(n.shadowRoot);
-        n.shadowRoot.addEventListener("change", onChange, true);
-        wire(n.shadowRoot);
+      var sr = rootOf(n);
+      if (sr && !wired.has(sr)) {
+        wired.add(sr);
+        if (closed.get(n) === sr) listen(sr);  // nothing inside reaches outer listeners as itself
+        else sr.addEventListener("change", onChange, true);
+        wire(sr);
       }
       if (/^(IFRAME|FRAME)$/.test(n.tagName)) {
         var d = null;
         try { d = n.contentDocument; } catch (e) { d = null; }
         if (d && d.readyState !== "uninitialized" && !wired.has(d)) {
           wired.add(d);
+          materialize(d);
           listen(d);
           d.querySelectorAll("input[type=hidden]").forEach(function (h) { committed.set(h, h.value); });
           wire(d);

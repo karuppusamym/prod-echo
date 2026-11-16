@@ -186,6 +186,7 @@ LOAN2 = """{% extends layout %}{% block body %}
 {% if variant == "changed" %}<div class="row"><label for="rate">Rate type</label><input id="rate" name="rate" type="text"></div>{% endif %}
 <div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
 <div class="row"><ack-box id="ack"></ack-box></div>
+<div class="row"><terms-box id="terms"></terms-box></div>
 <p id="formError" class="err" hidden></p>
 <button id="submit" type="submit">Submit</button>
 </form>{% endblock %}"""

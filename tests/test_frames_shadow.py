@@ -171,3 +171,29 @@ def test_select_resolves_frame_owners_and_shadow_keys() -> None:
     assert H.select(r, "iframe#f").get("src") == "/s"
     assert H.select(r, "iframe[name='k']") is not None
     assert S.FRAME_SEP == " >> " and S.SHADOW_SEP == " >>> "
+
+
+def test_closed_shadow_roots_are_captured_and_shipped_for_the_runtime_to_attach(ws) -> None:  # noqa: ANN001
+    acts = [json.loads(x) for x in (FIXTURE / "actions.jsonl").read_text().splitlines()]
+    terms = [a for a in acts if a["target"]["key"] == "#terms >>> #termsChk"]
+    assert terms and all(a["event"] == "change" and a["value"] == "true" for a in terms)
+    assert {s["key"]: s["visible"] for s in terms[0]["after"]}["#terms >>> #termsNote"]
+    shots = [
+        json.loads(p.read_text()) for p in (FIXTURE / "screens").glob("*.json") if p.stem.isdigit()
+    ]
+    loan = max((s for s in shots if "/loan/new" in s["url"]), key=lambda s: s["n"])
+    html = (FIXTURE / "screens" / f"{loan['n']}.html").read_text(encoding="utf-8")
+    assert '<terms-box id="terms"><template shadowrootmode="closed">' in html
+    dist = build.current(ws.apps_root, "app2")
+    gen = (dist / "screens" / "new_loan.html").read_text()
+    # inert in the package: a declarative closed root would hide it from the runtime too
+    assert '<terms-box id="terms"><template data-echo-shadow="closed">' in gen
+    assert 'shadowrootmode="closed"' not in gen
+    beh = json.loads((dist / "behaviors.json").read_text())
+    assert any(
+        r["target"] == "#terms >>> #termsNote" and r["trigger"]["field"] == "#terms >>> #termsChk"
+        for s in beh["screens"]
+        for r in s["rules"]
+    )
+    r = H.parse('<x-t id="t"><template data-echo-shadow="closed"><b id="in"></b></template></x-t>')
+    assert H.select(r, "#t >>> #in") is not None

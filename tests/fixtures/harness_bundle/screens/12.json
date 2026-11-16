@@ -1,49 +1,23 @@
 {
   "n": 12,
-  "url": "http://127.0.0.1:5102/search",
-  "title": "Core - Search",
-  "dom_hash": "sha256:2da0cc186674cddda89b946f40aee7061d95e37cd06e72e85ae4846c82965071",
-  "captured": "2026-11-16T17:40:35.409Z",
-  "png": "12.png",
+  "url": "http://127.0.0.1:5101/customer/90218",
+  "title": "CRM - Customer",
+  "dom_hash": "sha256:37ebd2987c7c460c38256472265074ba669b605f0ab9e14c1c88df910f78d076",
+  "captured": "2026-11-16T18:18:24.838Z",
+  "png": null,
   "elements": [
     {
-      "tag": "input",
-      "id": "acct",
-      "name": "acct",
-      "label": "Account number",
-      "css": "#acct",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true,
-      "key": "#acct"
-    },
-    {
-      "tag": "button",
-      "id": "searchBtn",
-      "name": null,
-      "label": null,
-      "css": "#searchBtn",
-      "aria": null,
-      "text": "Find",
-      "editable": false,
-      "type": "button",
-      "visible": true,
-      "key": "#searchBtn"
-    },
-    {
       "tag": "a",
-      "id": "newLoan",
+      "id": "backLink",
       "name": null,
       "label": null,
-      "css": "#newLoan",
+      "css": "#backLink",
       "aria": null,
-      "text": "New loan",
+      "text": "New search",
       "editable": false,
       "type": null,
       "visible": true,
-      "key": "#newLoan"
+      "key": "#backLink"
     }
   ],
   "frames": [],

@@ -1,130 +1,47 @@
 {
   "n": 19,
-  "url": "http://127.0.0.1:5102/loan/new?acct=0048812231",
-  "title": "Core - New Loan",
-  "dom_hash": "sha256:00c1f75bf4eceb5c55eca7f56fbd728533328df66af28f6fcc3079a2a9aa77ef",
-  "captured": "2026-11-16T17:40:47.993Z",
+  "url": "http://127.0.0.1:5102/loan/70000098",
+  "title": "Core - Loan Confirmation",
+  "dom_hash": "sha256:eb027b645dbcf3e44b85da74a4fb92fd79fbd66748966d8504ade848f433c3de",
+  "captured": "2026-11-16T18:18:31.834Z",
   "png": "19.png",
   "elements": [
     {
-      "tag": "input",
-      "id": "acctNo",
-      "name": "acct",
-      "label": null,
-      "css": "#acctNo",
-      "aria": null,
-      "text": null,
-      "editable": false,
-      "type": "hidden",
-      "visible": false,
-      "key": "#acctNo"
-    },
-    {
-      "tag": "input",
-      "id": "loanAmt",
-      "name": "loanAmt",
-      "label": "Loan amount",
-      "css": "#loanAmt",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true,
-      "key": "#loanAmt"
-    },
-    {
-      "tag": "input",
-      "id": "term",
-      "name": "term",
-      "label": "Term (months)",
-      "css": "#term",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true,
-      "key": "#term"
-    },
-    {
-      "tag": "select",
-      "id": "purpose",
-      "name": "purpose",
-      "label": "Purpose",
-      "css": "#purpose",
-      "aria": null,
-      "text": "-- choose --\nAuto\nHome improvement\nPersonal",
-      "editable": true,
-      "type": null,
-      "visible": true,
-      "key": "#purpose"
-    },
-    {
-      "tag": "select",
-      "id": "subPurpose",
-      "name": "subPurpose",
-      "label": "Sub-purpose",
-      "css": "#subPurpose",
-      "aria": null,
-      "text": "-- choose --\nDebt consolidation\nTravel\nOther",
-      "editable": true,
-      "type": null,
-      "visible": true,
-      "key": "#subPurpose"
-    },
-    {
-      "tag": "input",
-      "id": "cosigner",
-      "name": "cosigner",
-      "label": "Co-signer name",
-      "css": "#cosigner",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": false,
-      "key": "#cosigner"
-    },
-    {
-      "tag": "input",
-      "id": "ssn",
-      "name": "ssn",
-      "label": "Confirm SSN",
-      "css": "#ssn",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "text",
-      "visible": true,
-      "key": "#ssn"
-    },
-    {
-      "tag": "button",
-      "id": "submit",
+      "tag": "a",
+      "id": "newSearch",
       "name": null,
       "label": null,
-      "css": "#submit",
+      "css": "#newSearch",
       "aria": null,
-      "text": "Submit",
+      "text": "Back to lookup",
       "editable": false,
-      "type": "submit",
+      "type": null,
       "visible": true,
-      "key": "#submit"
-    },
-    {
-      "tag": "input",
-      "id": "ackChk",
-      "name": null,
-      "label": "I confirmed the customer's identity",
-      "css": "#ack >>> #ackChk",
-      "aria": null,
-      "text": null,
-      "editable": true,
-      "type": "checkbox",
-      "visible": true,
-      "key": "#ack >>> #ackChk",
-      "shadow": true
+      "key": "#newSearch"
     }
   ],
-  "frames": [],
-  "opaque": []
+  "frames": [
+    {
+      "key": "iframe#sumFrame",
+      "url": "http://127.0.0.1:5102/loan/70000098/summary",
+      "title": "Loan summary",
+      "html": "19.frame1.html",
+      "dom_hash": "sha256:c9f36bff4503a51acffeb7f757f50346b383661141fcacc6d0833618f82f33f3",
+      "cross_origin": false
+    }
+  ],
+  "opaque": [
+    {
+      "key": "#payChart",
+      "tag": "canvas",
+      "type": null,
+      "rect": {
+        "x": 16.0,
+        "y": 491.875,
+        "width": 380.0,
+        "height": 90.0
+      },
+      "png": "19.opaque1.png"
+    }
+  ]
 }

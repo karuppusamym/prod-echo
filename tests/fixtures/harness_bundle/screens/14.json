@@ -2,9 +2,9 @@
   "n": 14,
   "url": "http://127.0.0.1:5102/loan/new?acct=0079963328",
   "title": "Core - New Loan",
-  "dom_hash": "sha256:b2207b39bb7ed481334b5ef2b2b47a320069710c41b6ba78a04ff40a938cf6cc",
-  "captured": "2026-11-16T17:40:36.708Z",
-  "png": null,
+  "dom_hash": "sha256:0ec6ea343d1bcbab39757eed315625b119141c83ff3e17d894691c59c4f8286b",
+  "captured": "2026-11-16T18:18:27.868Z",
+  "png": "14.png",
   "elements": [
     {
       "tag": "input",
@@ -81,7 +81,7 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": true,
+      "visible": false,
       "key": "#cosigner"
     },
     {
@@ -122,6 +122,20 @@
       "type": "checkbox",
       "visible": true,
       "key": "#ack >>> #ackChk",
+      "shadow": true
+    },
+    {
+      "tag": "input",
+      "id": "termsChk",
+      "name": null,
+      "label": "Customer accepted the loan terms",
+      "css": "#terms >>> #termsChk",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "checkbox",
+      "visible": true,
+      "key": "#terms >>> #termsChk",
       "shadow": true
     }
   ],

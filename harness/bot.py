@@ -341,6 +341,14 @@ class Scenario:
         self.type_into("Type SSN", "Core - New Loan", "#ssn", "ssn", digits, private=True)
         # inside the <ack-box> web component's open shadow root (Playwright's CSS pierces it)
         self.click("Confirm identity", sel("Core - New Loan", id="ackChk", tag="INPUT"), "#ackChk")
+        # inside <terms-box>'s CLOSED shadow root: no selector reaches it, so click the checkbox
+        # where it is drawn inside the host
+        self.act(
+            "Click",
+            "Accept terms",
+            sel("Core - New Loan", id="termsChk", tag="INPUT"),
+            lambda: self.page.locator("#terms").click(position={"x": 6, "y": 8}),
+        )
         self.click(
             "Click submit",
             sel("Core - New Loan", id="submit", tag="BUTTON"),

@@ -1,10 +1,10 @@
 {
   "n": 18,
-  "url": "http://127.0.0.1:5102/loan/new?acct=0048812231",
+  "url": "http://127.0.0.1:5102/loan/new?acct=0079963328",
   "title": "Core - New Loan",
-  "dom_hash": "sha256:3c758e1e7059d4865284fdd42c68dcdcf62f6029e956395d1bc47f7902584935",
-  "captured": "2026-11-16T17:40:46.699Z",
-  "png": "18.png",
+  "dom_hash": "sha256:f9d8f6eb61ca8580266f6a93d71c3d47e6045d449cc7d0d2e1032e6c256a9e9b",
+  "captured": "2026-11-16T18:18:31.420Z",
+  "png": null,
   "elements": [
     {
       "tag": "input",
@@ -65,7 +65,7 @@
       "label": "Sub-purpose",
       "css": "#subPurpose",
       "aria": null,
-      "text": "-- choose --\nDebt consolidation\nTravel\nOther",
+      "text": "-- choose --\nRepair\nAddition\nSolar",
       "editable": true,
       "type": null,
       "visible": true,
@@ -81,7 +81,7 @@
       "text": null,
       "editable": true,
       "type": "text",
-      "visible": false,
+      "visible": true,
       "key": "#cosigner"
     },
     {
@@ -122,6 +122,20 @@
       "type": "checkbox",
       "visible": true,
       "key": "#ack >>> #ackChk",
+      "shadow": true
+    },
+    {
+      "tag": "input",
+      "id": "termsChk",
+      "name": null,
+      "label": "Customer accepted the loan terms",
+      "css": "#terms >>> #termsChk",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "checkbox",
+      "visible": true,
+      "key": "#terms >>> #termsChk",
       "shadow": true
     }
   ],

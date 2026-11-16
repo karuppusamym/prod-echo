@@ -115,6 +115,10 @@ Not reproduced, by design: server-side rules, and any client behavior the bot ne
   `generate-report.json` lists it under `opaque`.
 - **Shadow DOM** is kept as captured, as declarative shadow DOM: the browser attaches the root
   without the app's script, slots inside it are bound, and the runtime resolves `#host >>> #x`.
+  A **closed** root stays closed, so an agent cannot reach into it any more than on the real app:
+  the package ships it as an inert `<template data-echo-shadow="closed">` (a declarative closed
+  root would hide its content from the runtime too), and the runtime attaches it with
+  `attachShadow({mode: "closed"})` on load, keeping the reference for its rules and listeners.
 - **Canvas and embedded objects** are kept in place, empty: the script that drew a canvas is never
   served, and an `embed`/`object` loses its `src`/`data` and fallback content (it may be a
   customer's document). Each is marked `data-echo-opaque`; a click on one is logged as unobserved

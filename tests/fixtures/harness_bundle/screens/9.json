@@ -1,47 +1,144 @@
 {
   "n": 9,
-  "url": "http://127.0.0.1:5102/loan/70000097",
-  "title": "Core - Loan Confirmation",
-  "dom_hash": "sha256:c16d0ab628e2fa17a1672356d82fe385b6570a850160314fcfc2f0872e5f16b7",
-  "captured": "2026-11-16T17:40:30.580Z",
+  "url": "http://127.0.0.1:5102/loan/new?acct=0048812231",
+  "title": "Core - New Loan",
+  "dom_hash": "sha256:67f06946b7f3c7638c0c7be25bb5ab475740149b210fd077e48dcdb9c7d83d83",
+  "captured": "2026-11-16T18:18:21.709Z",
   "png": null,
   "elements": [
     {
-      "tag": "a",
-      "id": "newSearch",
-      "name": null,
+      "tag": "input",
+      "id": "acctNo",
+      "name": "acct",
       "label": null,
-      "css": "#newSearch",
+      "css": "#acctNo",
       "aria": null,
-      "text": "Back to lookup",
+      "text": null,
       "editable": false,
+      "type": "hidden",
+      "visible": false,
+      "key": "#acctNo"
+    },
+    {
+      "tag": "input",
+      "id": "loanAmt",
+      "name": "loanAmt",
+      "label": "Loan amount",
+      "css": "#loanAmt",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true,
+      "key": "#loanAmt"
+    },
+    {
+      "tag": "input",
+      "id": "term",
+      "name": "term",
+      "label": "Term (months)",
+      "css": "#term",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true,
+      "key": "#term"
+    },
+    {
+      "tag": "select",
+      "id": "purpose",
+      "name": "purpose",
+      "label": "Purpose",
+      "css": "#purpose",
+      "aria": null,
+      "text": "-- choose --\nAuto\nHome improvement\nPersonal",
+      "editable": true,
       "type": null,
       "visible": true,
-      "key": "#newSearch"
-    }
-  ],
-  "frames": [
+      "key": "#purpose"
+    },
     {
-      "key": "iframe#sumFrame",
-      "url": "http://127.0.0.1:5102/loan/70000097/summary",
-      "title": "Loan summary",
-      "html": "9.frame1.html",
-      "dom_hash": "sha256:3534f177fa7fdaaadeddf0610d357fb2d9116bfb9c2d2dde87052cbec2819731",
-      "cross_origin": false
-    }
-  ],
-  "opaque": [
-    {
-      "key": "#payChart",
-      "tag": "canvas",
+      "tag": "select",
+      "id": "subPurpose",
+      "name": "subPurpose",
+      "label": "Sub-purpose",
+      "css": "#subPurpose",
+      "aria": null,
+      "text": "-- choose --\nNew vehicle\nUsed vehicle",
+      "editable": true,
       "type": null,
-      "rect": {
-        "x": 16.0,
-        "y": 491.875,
-        "width": 380.0,
-        "height": 90.0
-      },
-      "png": null
+      "visible": true,
+      "key": "#subPurpose"
+    },
+    {
+      "tag": "input",
+      "id": "cosigner",
+      "name": "cosigner",
+      "label": "Co-signer name",
+      "css": "#cosigner",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": false,
+      "key": "#cosigner"
+    },
+    {
+      "tag": "input",
+      "id": "ssn",
+      "name": "ssn",
+      "label": "Confirm SSN",
+      "css": "#ssn",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "text",
+      "visible": true,
+      "key": "#ssn"
+    },
+    {
+      "tag": "button",
+      "id": "submit",
+      "name": null,
+      "label": null,
+      "css": "#submit",
+      "aria": null,
+      "text": "Submit",
+      "editable": false,
+      "type": "submit",
+      "visible": true,
+      "key": "#submit"
+    },
+    {
+      "tag": "input",
+      "id": "ackChk",
+      "name": null,
+      "label": "I confirmed the customer's identity",
+      "css": "#ack >>> #ackChk",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "checkbox",
+      "visible": true,
+      "key": "#ack >>> #ackChk",
+      "shadow": true
+    },
+    {
+      "tag": "input",
+      "id": "termsChk",
+      "name": null,
+      "label": "Customer accepted the loan terms",
+      "css": "#terms >>> #termsChk",
+      "aria": null,
+      "text": null,
+      "editable": true,
+      "type": "checkbox",
+      "visible": true,
+      "key": "#terms >>> #termsChk",
+      "shadow": true
     }
-  ]
+  ],
+  "frames": [],
+  "opaque": []
 }

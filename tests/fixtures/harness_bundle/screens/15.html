@@ -10,11 +10,12 @@
 <div class="row"><label for="term">Term (months)</label><input id="term" name="term" type="text"></div>
 <div class="row"><label for="purpose">Purpose</label><select id="purpose" name="purpose">
 <option value="">-- choose --</option><option value="AUTO">Auto</option><option value="HOME">Home improvement</option><option value="PERSONAL">Personal</option></select></div>
-<div class="row"><label for="subPurpose">Sub-purpose</label><select id="subPurpose" name="subPurpose"><option value="">-- choose --</option><option value="REPAIR">Repair</option><option value="ADDITION">Addition</option><option value="SOLAR">Solar</option></select></div>
+<div class="row"><label for="subPurpose">Sub-purpose</label><select id="subPurpose" name="subPurpose" disabled=""><option value="">-- choose --</option></select></div>
 <div class="row" id="cosignerRow"><label for="cosigner">Co-signer name</label><input id="cosigner" name="cosigner" type="text"></div>
 
 <div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
 <div class="row"><ack-box id="ack"><template shadowrootmode="open"><label><input type="checkbox" id="ackChk"> I confirmed the customer's identity</label><p id="ackNote" hidden="">Identity confirmed.</p></template></ack-box></div>
+<div class="row"><terms-box id="terms"><template shadowrootmode="closed"><style>:host{display:block}input{margin:0 6px 0 0}</style><label><input type="checkbox" id="termsChk">Customer accepted the loan terms</label><p id="termsNote" hidden="">Terms accepted.</p></template></terms-box></div>
 <p id="formError" class="err" hidden=""></p>
 <button id="submit" type="submit">Submit</button>
 </form></section>

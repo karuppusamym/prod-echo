@@ -117,6 +117,23 @@
     });
   }
 
+  // The same, with a CLOSED shadow root: element.shadowRoot is null, and events from inside reach
+  // the page retargeted to the host.
+  if (window.customElements && !customElements.get("terms-box")) {
+    customElements.define("terms-box", class extends HTMLElement {
+      connectedCallback() {
+        if (this._r) return;
+        var r = this._r = this.attachShadow({ mode: "closed" });
+        r.innerHTML = '<style>:host{display:block}input{margin:0 6px 0 0}</style>' +
+          '<label><input type="checkbox" id="termsChk">Customer accepted the loan terms</label>' +
+          '<p id="termsNote" hidden>Terms accepted.</p>';
+        r.getElementById("termsChk").addEventListener("change", function (e) {
+          r.getElementById("termsNote").hidden = !e.target.checked;
+        });
+      }
+    });
+  }
+
   // A repayment chart drawn on a canvas: pixels only, no HTML to read.
   function drawChart() {
     var c = document.getElementById("payChart");

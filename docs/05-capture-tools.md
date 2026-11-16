@@ -125,13 +125,25 @@ human needs to recognize a screen and what parity reports show when a step diffe
   else `iframe[name='..']` / `iframe[src='..']`; nested: `iframe#a >> iframe#b`), and its elements,
   states and actions are keyed `iframe#sumFrame >> #sumAmt`. A page's first snapshot waits for
   its iframes to finish loading (up to the same 6 s cap).
-- **Shadow DOM.** Open shadow roots are walked: their elements are tracked and keyed
+- **Shadow DOM.** Shadow roots are walked: their elements are tracked and keyed
   `#ack >>> #ackChk` (host key, then the key inside the root), mutations inside them are observed,
   clicks are attributed to the inner element (the composed event path, not the retargeted host),
   and `change`, which does not leave a shadow root, is listened to on each root. The snapshot HTML
-  carries them as declarative shadow DOM (`<template shadowrootmode="open">`, via
-  `Element.getHTML`, Chrome/Edge 125+). Closed shadow roots are not reachable from page script:
-  their content is only in the screenshot, and a click inside one is recorded on the host.
+  carries them as declarative shadow DOM (`<template shadowrootmode="open|closed">`, via
+  `Element.getHTML`, Chrome/Edge 125+).
+- **Closed shadow roots.** `element.shadowRoot` is null for them, and events from inside reach the
+  page retargeted to the host. The page script, injected before the page's own scripts, wraps
+  `attachShadow` the way it wraps `fetch`/XHR: it keeps a private reference to each closed root
+  and returns the same closed root, so the page behaves as before. With that reference the root is
+  walked, serialized and listened to (click, input and change on the root itself; the outer
+  listener skips an event whose target is a closed host, so nothing is counted twice). The
+  wrapper is a change to the page's JavaScript environment as small as the request counters, but a
+  page that checks its built-ins for tampering could notice it.
+  A closed root the page built *before* the script arrived (the recorder attached to a page that
+  was already open) is unknown to it: such a snapshot is marked `late`, and the recorder reads the
+  top document through DevTools instead (`DOM.getOuterHTML` with `includeShadowDOM`, which sees
+  every root). Its content is then saved, but clicks inside it are still recorded on the host
+  until the page is reloaded under the recorder.
 - **Canvas and embedded objects.** `canvas`, `embed` and `object` have no HTML to read. Each is
   listed in the screen's `opaque` with its box, and when a screenshot is taken the box is cropped
   into `screens/<n>.opaque<i>.png` (top document only). A click on one is recorded with its point

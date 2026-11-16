@@ -1,11 +1,24 @@
 {
   "n": 11,
-  "url": "http://127.0.0.1:5101/customer/90218",
-  "title": "CRM - Customer",
-  "dom_hash": "sha256:37ebd2987c7c460c38256472265074ba669b605f0ab9e14c1c88df910f78d076",
-  "captured": "2026-11-16T17:40:33.228Z",
-  "png": null,
+  "url": "http://127.0.0.1:5101/results?name=LINDA+NGUYEN",
+  "title": "CRM - Results",
+  "dom_hash": "sha256:4af8540ac2454e2c076115614d06903d5dd53c7b9044b11a94f6b3c080b84763",
+  "captured": "2026-11-16T18:18:24.391Z",
+  "png": "11.png",
   "elements": [
+    {
+      "tag": "a",
+      "id": null,
+      "name": null,
+      "label": null,
+      "css": "#results > tbody:nth-of-type(1) > tr.result:nth-of-type(1) > td:nth-of-type(4) > a.open:nth-of-type(1)",
+      "aria": null,
+      "text": "Open",
+      "editable": false,
+      "type": null,
+      "visible": true,
+      "key": "#results > tbody:nth-of-type(1) > tr.result:nth-of-type(1) > td:nth-of-type(4) > a.open:nth-of-type(1)"
+    },
     {
       "tag": "a",
       "id": "backLink",

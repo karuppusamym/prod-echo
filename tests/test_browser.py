@@ -109,6 +109,12 @@ def test_generated_app2_reproduces_the_captured_behaviors(served, page) -> None:
     page.click("#ackChk")
     page.wait_for_timeout(100)
     assert page.locator("#ackNote").is_visible()
+    # a CLOSED root: no selector reaches inside, as on the real app; its note grows the host
+    h0 = page.locator("#terms").bounding_box()["height"]
+    page.locator("#terms").click(position={"x": 6, "y": 8})
+    page.wait_for_timeout(100)
+    assert page.locator("#terms").bounding_box()["height"] > h0
+    assert page.evaluate("document.getElementById('terms').shadowRoot") is None
 
 
 def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path: Path) -> None:
@@ -128,7 +134,7 @@ def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path:
         port = so.getsockname()[1]
     top = (
         "<!doctype html><html><head><title>W - Main</title></head><body>"
-        '<ack-box id="ack"></ack-box>'
+        '<ack-box id="ack"></ack-box><cl-box id="cb"></cl-box>'
         '<iframe id="same" src="/inner"></iframe>'
         f'<iframe id="cross" src="http://localhost:{port}/inner"></iframe>'
         '<canvas id="chart" width="200" height="80"></canvas><script>'
@@ -137,6 +143,10 @@ def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path:
         ' r.innerHTML = \'<input type="checkbox" id="ackChk"><p id="ackNote" hidden>OK</p>\';'
         ' r.getElementById("ackChk").addEventListener("change", e => {'
         ' r.getElementById("ackNote").hidden = !e.target.checked; }); } });'
+        'customElements.define("cl-box", class extends HTMLElement { connectedCallback() {'
+        ' const r = this.attachShadow({mode: "closed"});'
+        " r.innerHTML = '<style>:host{display:block}input{margin:0}</style>'"
+        ' + \'<input type="checkbox" id="cIn">\'; } });'
         'const g = document.getElementById("chart").getContext("2d");'
         "g.fillRect(10, 10, 60, 60);</script></body></html>"
     )
@@ -169,6 +179,8 @@ def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path:
             time.sleep(1.5)
             pg.click("#ackChk")
             time.sleep(0.8)
+            pg.locator("#cb").click(position={"x": 5, "y": 5})
+            time.sleep(0.8)
             pg.frame_locator("#same").locator("#note").press_sequentially("hello", delay=20)
             time.sleep(0.8)
             pg.frame_locator("#cross").locator("#note").press_sequentially("xo", delay=20)
@@ -191,6 +203,8 @@ def test_recorder_captures_cross_origin_frames_shadow_roots_and_canvas(tmp_path:
     acts = [json.loads(x) for x in (bundle / "actions.jsonl").read_text().splitlines()]
     got = {a["target"]["key"]: (a["event"], a["value"]) for a in acts}
     assert got["#ack >>> #ackChk"] == ("change", "true")
+    assert got["#cb >>> #cIn"] == ("change", "true")  # inside the closed root
+    assert 'shadowrootmode="closed"' in (bundle / "screens" / f"{last['n']}.html").read_text()
     assert got["iframe#same >> #note"] == ("input", "hello")
     assert got["iframe#cross >> #note"] == ("input", "xo")
     chart = next(a for a in acts if a["target"]["key"] == "#chart")
@@ -442,3 +456,38 @@ def test_refresh_never_touches_leased_rows_and_release_resets_onto_the_new_basel
         assert c.execute(text("SELECT COUNT(*) FROM LOAN WHERE LOAN_NO = 9599999999")).scalar() == 0
     again = store.request(P.PROCESS, holder="agent-team-a/run-2", key="4471")
     assert again.baseline == "B2"
+
+
+def test_recorder_attached_late_still_saves_closed_roots_through_devtools(tmp_path: Path) -> None:
+    """The page built its closed root before the recorder attached: the page script never saw
+    attachShadow, so the snapshot is marked late and the recorder reads the DOM via DevTools."""
+    import time
+
+    from playwright.sync_api import sync_playwright
+
+    from harness.bot import _start_recorder
+
+    page_html = (
+        '<!doctype html><html><head><title>Late</title></head><body><input id="q">'
+        '<late-box id="lb"></late-box><script>customElements.define("late-box",'
+        " class extends HTMLElement { connectedCallback() {"
+        ' this.attachShadow({mode: "closed"}).innerHTML = \'<b id="secret">inside</b>\'; } });'
+        "</script></body></html>"
+    )
+    bundle, profile = tmp_path / "bundle", tmp_path / "profile"
+    bundle.mkdir()
+    with sync_playwright() as pw:
+        ctx = pw.chromium.launch_persistent_context(
+            str(profile), headless=True, args=["--remote-debugging-port=0"]
+        )
+        pg = ctx.pages[0]
+        pg.set_content(page_html)  # built before anyone is watching
+        time.sleep(0.5)
+        rec = _start_recorder(profile, bundle)
+        time.sleep(1.0)
+        pg.locator("#q").press_sequentially("x", delay=20)
+        time.sleep(1.0)
+        ctx.close()
+        assert rec.wait(timeout=30) == 0
+    htmls = [p.read_text() for p in (bundle / "screens").glob("*.html")]
+    assert htmls and any('shadowrootmode="closed"' in h and 'id="secret"' in h for h in htmls)

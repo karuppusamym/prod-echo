@@ -15,6 +15,7 @@
 
 <div class="row"><label for="ssn">Confirm SSN</label><input id="ssn" name="ssn" type="text" maxlength="11" autocomplete="off"></div>
 <div class="row"><ack-box id="ack"><template shadowrootmode="open"><label><input type="checkbox" id="ackChk"> I confirmed the customer's identity</label><p id="ackNote" hidden="">Identity confirmed.</p></template></ack-box></div>
+<div class="row"><terms-box id="terms"><template shadowrootmode="closed"><style>:host{display:block}input{margin:0 6px 0 0}</style><label><input type="checkbox" id="termsChk">Customer accepted the loan terms</label><p id="termsNote" hidden="">Terms accepted.</p></template></terms-box></div>
 <p id="formError" class="err" hidden=""></p>
 <button id="submit" type="submit">Submit</button>
 </form></section>

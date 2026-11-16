@@ -379,6 +379,12 @@ class Recorder:
         top = payload if not in_frame else await ps.snapshot(ps.top_frame)
         if top is None:
             return
+        if top.get("late"):
+            # The script arrived after the page had built itself: closed shadow roots made before
+            # it are unknown to it. DevTools sees every root; read the document there instead.
+            html = await ps.devtools_html()
+            if html:
+                top = {**top, "html": html}
         frames = []
         for fid, fkey in await ps.child_frames():
             rep = payload if fid == frame_id else await ps.snapshot(fid)
@@ -471,6 +477,24 @@ class PageState:
 
     def _context(self, frame_id: str):  # noqa: ANN202
         return next(((s, c) for (_, c), (s, f) in self.contexts.items() if f == frame_id), None)
+
+    async def devtools_html(self) -> str | None:
+        """The top document with every shadow root, open or closed, as declarative shadow DOM."""
+        doc = await _quiet(self.main.send("DOM.getDocument", {"depth": 1}))
+        html = next(
+            (
+                c
+                for c in ((doc or {}).get("root") or {}).get("children") or []
+                if c.get("nodeName") == "HTML"
+            ),
+            None,
+        )
+        if html is None:
+            return None
+        r = await _quiet(
+            self.main.send("DOM.getOuterHTML", {"nodeId": html["nodeId"], "includeShadowDOM": True})
+        )
+        return (r or {}).get("outerHTML")
 
     async def snapshot(self, frame_id: str | None) -> dict | None:
         hit = self._context(frame_id) if frame_id else None
